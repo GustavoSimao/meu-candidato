@@ -1,0 +1,18 @@
+{
+    "name": "meu-candidato/mandate",
+    "type": "library",
+    "version": "1.0",
+    "license": "proprietary",
+    "autoload": {
+        "psr-4": {
+            "MeuCandidato\\Mandate\\": "src/"
+        }
+    },
+    "extra": {
+        "laravel": {
+            "providers": [
+                "MeuCandidato\\Mandate\\MandateServiceProvider"
+            ]
+        }
+    }
+}
