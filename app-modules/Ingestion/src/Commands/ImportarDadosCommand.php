@@ -11,6 +11,17 @@ use MeuCandidato\Ingestion\Services\CamaraApiClient;
 use MeuCandidato\Ingestion\Services\SenadoApiClient;
 use MeuCandidato\Ingestion\Services\TseApiClient;
 use MeuCandidato\Legislative\Models\Bill;
+use MeuCandidato\Legislative\Models\BillCoauthor;
+use MeuCandidato\Legislative\Models\BillProgress;
+use MeuCandidato\Legislative\Models\BillTheme;
+use MeuCandidato\Legislative\Models\CommitteeMembership;
+use MeuCandidato\Legislative\Models\Event;
+use MeuCandidato\Legislative\Models\LeadershipPosition;
+use MeuCandidato\Legislative\Models\ParliamentaryBloc;
+use MeuCandidato\Legislative\Models\ParliamentaryFront;
+use MeuCandidato\Legislative\Models\PartyOrientation;
+use MeuCandidato\Legislative\Models\Rapporteurship;
+use MeuCandidato\Legislative\Models\Speech;
 use MeuCandidato\Legislative\Models\Vote;
 use MeuCandidato\Legislative\Models\VotingSession;
 use MeuCandidato\Mandate\Models\Mandate;
@@ -21,7 +32,7 @@ use MeuCandidato\Transparency\Models\Expense;
 class ImportarDadosCommand extends Command
 {
     protected $signature = 'importar-dados
-                            {subcomando? : Subcomando a executar (partidos, deputados, senadores, mandatos, proposicoes, votacoes, votacoes-sessoes, votos, despesas, despesas-ceap, despesas-deputados, despesas-mes, financiamento-campanha, senador-votos, senador-autorias, todos)}
+                            {subcomando? : Subcomando a executar}
                             {--ano-inicio=2001 : Ano inicial para dados legislativos}
                             {--ano-fim= : Ano final (padrão: ano atual)}
                             {--mes= : Mês para despesas-mes (1-12, obrigatório)}';
@@ -115,6 +126,19 @@ class ImportarDadosCommand extends Command
             'financiamento-campanha' => $this->importarFinanciamentoCampanha($anoFim),
             'senador-votos' => $this->importarVotosSenadores(),
             'senador-autorias' => $this->importarAutoriasSenadores(),
+            'discursos-camara' => $this->importarDiscursosCamara(),
+            'eventos-camara' => $this->importarEventosCamara(),
+            'frentes-camara' => $this->importarFrentesCamara(),
+            'orgaos-camara' => $this->importarOrgaosCamara(),
+            'orientacoes-votacao' => $this->importarOrientacoesVotacao(),
+            'temas-proposicoes' => $this->importarTemasProposicoes(),
+            'tramitacao-proposicoes' => $this->importarTramitacaoProposicoes(),
+            'autores-proposicoes' => $this->importarAutoresProposicoes(),
+            'blocos' => $this->importarBlocos(),
+            'comissoes-senado' => $this->importarComissoesSenado(),
+            'discursos-senado' => $this->importarDiscursosSenado(),
+            'relatorias-senado' => $this->importarRelatoriasSenado(),
+            'liderancas-senado' => $this->importarLiderancasSenado(),
             'todos' => $this->importarTodos($anoInicio, $anoFim),
             default => $this->errorSubcomando($subcomando),
         };
@@ -122,7 +146,14 @@ class ImportarDadosCommand extends Command
 
     private function errorSubcomando(string $subcomando): int
     {
-        $this->error("Subcomando '{$subcomando}' não encontrado. Opções: partidos, deputados, senadores, mandatos, proposicoes, votacoes, votacoes-sessoes, votos, despesas, despesas-ceap, despesas-deputados, despesas-mes, financiamento-campanha, senador-votos, senador-autorias, todos");
+        $this->error("Subcomando '{$subcomando}' não encontrado. Opções disponíveis:");
+        $this->line('  Dados base: partidos, deputados, senadores, mandatos');
+        $this->line('  Legislação: proposicoes, votacoes, votacoes-sessoes, votos, votos-bulk');
+        $this->line('  Transparência: despesas, despesas-ceap, despesas-deputados, despesas-mes, financiamento-campanha');
+        $this->line('  Senado: senador-votos, senador-autorias, comissoes-senado, discursos-senado, relatorias-senado, liderancas-senado');
+        $this->line('  Câmara extras: discursos-camara, eventos-camara, frentes-camara, orgaos-camara');
+        $this->line('  Enriquecimento: orientacoes-votacao, temas-proposicoes, tramitacao-proposicoes, autores-proposicoes, blocos');
+        $this->line('  Geral: todos');
 
         return self::FAILURE;
     }
@@ -1293,6 +1324,723 @@ class ImportarDadosCommand extends Command
 
             $this->finalizarJob($job, $count);
             $this->info("Importadas {$count} autorias de senadores.");
+
+            return self::SUCCESS;
+        } catch (\Throwable $e) {
+            $this->falharJob($job, $e);
+
+            return self::FAILURE;
+        }
+    }
+
+    private function importarDiscursosCamara(): int
+    {
+        $this->info('Importando discursos de deputados da Câmara...');
+
+        $job = $this->criarJob('discursos_camara');
+
+        try {
+            $deputados = Politician::whereNotNull('external_id')
+                ->where('position', 'Deputado Federal')
+                ->pluck('external_id', 'id');
+
+            if ($deputados->isEmpty()) {
+                $this->warn('Nenhum deputado encontrado.');
+
+                return self::FAILURE;
+            }
+
+            $count = 0;
+
+            foreach ($deputados as $politicianId => $externalId) {
+                $discursos = $this->camara->getDiscursosDeputado((int) $externalId, 1, 50);
+
+                foreach ($discursos as $discurso) {
+                    $dataHora = $discurso['dataHoraInicio'] ?? null;
+
+                    if (! $dataHora) {
+                        continue;
+                    }
+
+                    Speech::updateOrCreate(
+                        [
+                            'politician_id' => $politicianId,
+                            'source' => 'camara',
+                            'date' => $dataHora,
+                        ],
+                        [
+                            'external_id' => (string) ($discurso['idDiscurso'] ?? ''),
+                            'title' => mb_substr($discurso['resume'] ?? '', 0, 500),
+                            'resume' => $discurso['IndexLocalidade'] ?? null,
+                            'session_name' => $discurso['nomeOrgao'] ?? null,
+                            'uri' => $discurso['uriEvento'] ?? null,
+                        ]
+                    );
+
+                    $count++;
+                }
+
+                $this->rateLimit();
+            }
+
+            $this->finalizarJob($job, $count);
+            $this->info("Importados {$count} discursos de deputados.");
+
+            return self::SUCCESS;
+        } catch (\Throwable $e) {
+            $this->falharJob($job, $e);
+
+            return self::FAILURE;
+        }
+    }
+
+    private function importarEventosCamara(): int
+    {
+        $this->info('Importando eventos de deputados da Câmara...');
+
+        $job = $this->criarJob('eventos_camara');
+
+        try {
+            $deputados = Politician::whereNotNull('external_id')
+                ->where('position', 'Deputado Federal')
+                ->pluck('external_id', 'id');
+
+            if ($deputados->isEmpty()) {
+                $this->warn('Nenhum deputado encontrado.');
+
+                return self::FAILURE;
+            }
+
+            $count = 0;
+
+            foreach ($deputados as $politicianId => $externalId) {
+                $eventos = $this->camara->getEventosDeputado((int) $externalId, 1, 50);
+
+                foreach ($eventos as $evento) {
+                    Event::updateOrCreate(
+                        [
+                            'politician_id' => $politicianId,
+                            'source' => 'camara',
+                            'external_id' => (string) ($evento['id'] ?? ''),
+                        ],
+                        [
+                            'title' => mb_substr($evento['descricao'] ?? '', 0, 500),
+                            'type' => $evento['descricaoTipo'] ?? null,
+                            'start_date' => $evento['dataInicio'] ?? null,
+                            'end_date' => $evento['dataFim'] ?? null,
+                            'location' => $evento['local'] ?? null,
+                            'description' => $evento['descricao'] ?? null,
+                        ]
+                    );
+
+                    $count++;
+                }
+
+                $this->rateLimit();
+            }
+
+            $this->finalizarJob($job, $count);
+            $this->info("Importados {$count} eventos de deputados.");
+
+            return self::SUCCESS;
+        } catch (\Throwable $e) {
+            $this->falharJob($job, $e);
+
+            return self::FAILURE;
+        }
+    }
+
+    private function importarFrentesCamara(): int
+    {
+        $this->info('Importando frentes parlamentares da Câmara...');
+
+        $job = $this->criarJob('frentes_camara');
+
+        try {
+            $deputados = Politician::whereNotNull('external_id')
+                ->where('position', 'Deputado Federal')
+                ->pluck('external_id', 'id');
+
+            if ($deputados->isEmpty()) {
+                $this->warn('Nenhum deputado encontrado.');
+
+                return self::FAILURE;
+            }
+
+            $count = 0;
+
+            foreach ($deputados as $politicianId => $externalId) {
+                $frentes = $this->camara->getFrentesDeputado((int) $externalId);
+
+                foreach ($frentes as $frente) {
+                    ParliamentaryFront::updateOrCreate(
+                        [
+                            'politician_id' => $politicianId,
+                            'external_id' => (string) ($frente['id'] ?? ''),
+                        ],
+                        [
+                            'title' => mb_substr($frente['titulo'] ?? '', 0, 500),
+                            'legislature' => $frente['idLegislatura'] ?? null,
+                        ]
+                    );
+
+                    $count++;
+                }
+
+                $this->rateLimit();
+            }
+
+            $this->finalizarJob($job, $count);
+            $this->info("Importadas {$count} frentes parlamentares.");
+
+            return self::SUCCESS;
+        } catch (\Throwable $e) {
+            $this->falharJob($job, $e);
+
+            return self::FAILURE;
+        }
+    }
+
+    private function importarOrgaosCamara(): int
+    {
+        $this->info('Importando órgãos/comissões de deputados da Câmara...');
+
+        $job = $this->criarJob('orgaos_camara');
+
+        try {
+            $deputados = Politician::whereNotNull('external_id')
+                ->where('position', 'Deputado Federal')
+                ->pluck('external_id', 'id');
+
+            if ($deputados->isEmpty()) {
+                $this->warn('Nenhum deputado encontrado.');
+
+                return self::FAILURE;
+            }
+
+            $count = 0;
+
+            foreach ($deputados as $politicianId => $externalId) {
+                $orgaos = $this->camara->getOrgaosDeputado((int) $externalId);
+
+                foreach ($orgaos as $orgao) {
+                    CommitteeMembership::updateOrCreate(
+                        [
+                            'politician_id' => $politicianId,
+                            'source' => 'camara',
+                            'external_id' => (string) ($orgao['idOrgao'] ?? ''),
+                        ],
+                        [
+                            'name' => mb_substr($orgao['nomeOrgao'] ?? '', 0, 500),
+                            'acronym' => $orgao['siglaOrgao'] ?? null,
+                            'role' => $orgao['titulo'] ?? null,
+                            'start_date' => $orgao['dataInicio'] ?? null,
+                            'end_date' => $orgao['dataFim'] ?? null,
+                        ]
+                    );
+
+                    $count++;
+                }
+
+                $this->rateLimit();
+            }
+
+            $this->finalizarJob($job, $count);
+            $this->info("Importadas {$count} membros de órgãos da Câmara.");
+
+            return self::SUCCESS;
+        } catch (\Throwable $e) {
+            $this->falharJob($job, $e);
+
+            return self::FAILURE;
+        }
+    }
+
+    private function importarOrientacoesVotacao(): int
+    {
+        $this->info('Importando orientações partidárias das votações...');
+
+        $job = $this->criarJob('orientacoes_votacao');
+
+        try {
+            $sessions = VotingSession::whereNotNull('external_id')
+                ->where('external_id', 'NOT LIKE', 'senado_%')
+                ->pluck('external_id', 'id');
+
+            if ($sessions->isEmpty()) {
+                $this->warn('Nenhuma sessão de votação encontrada.');
+
+                return self::FAILURE;
+            }
+
+            $count = 0;
+
+            foreach ($sessions as $sessionId => $externalId) {
+                $orientacoes = $this->camara->getOrientacoesVotacao($externalId);
+
+                foreach ($orientacoes as $orientacao) {
+                    PartyOrientation::updateOrCreate(
+                        [
+                            'voting_session_id' => $sessionId,
+                            'party_acronym' => $orientacao['siglaBancada'] ?? '',
+                        ],
+                        [
+                            'orientation' => $orientacao['orientacao'] ?? '',
+                        ]
+                    );
+
+                    $count++;
+                }
+
+                $this->rateLimit();
+            }
+
+            $this->finalizarJob($job, $count);
+            $this->info("Importadas {$count} orientações partidárias.");
+
+            return self::SUCCESS;
+        } catch (\Throwable $e) {
+            $this->falharJob($job, $e);
+
+            return self::FAILURE;
+        }
+    }
+
+    private function importarTemasProposicoes(): int
+    {
+        $this->info('Importando temas das proposições...');
+
+        $job = $this->criarJob('temas_proposicoes');
+
+        try {
+            $bills = Bill::whereNotNull('external_id')
+                ->where('external_id', 'NOT LIKE', 'senado_%')
+                ->pluck('external_id', 'id');
+
+            if ($bills->isEmpty()) {
+                $this->warn('Nenhuma proposição encontrada.');
+
+                return self::FAILURE;
+            }
+
+            $count = 0;
+
+            foreach ($bills as $billId => $externalId) {
+                $temas = $this->camara->getTemasProposicao((int) $externalId);
+
+                foreach ($temas as $tema) {
+                    BillTheme::updateOrCreate(
+                        [
+                            'bill_id' => $billId,
+                            'external_id' => (string) ($tema['codTema'] ?? ''),
+                        ],
+                        [
+                            'theme_name' => mb_substr($tema['nomeTema'] ?? '', 0, 300),
+                        ]
+                    );
+
+                    $count++;
+                }
+
+                $this->rateLimit();
+            }
+
+            $this->finalizarJob($job, $count);
+            $this->info("Importados {$count} temas de proposições.");
+
+            return self::SUCCESS;
+        } catch (\Throwable $e) {
+            $this->falharJob($job, $e);
+
+            return self::FAILURE;
+        }
+    }
+
+    private function importarTramitacaoProposicoes(): int
+    {
+        $this->info('Importando tramitação das proposições...');
+
+        $job = $this->criarJob('tramitacao_proposicoes');
+
+        try {
+            $bills = Bill::whereNotNull('external_id')
+                ->where('external_id', 'NOT LIKE', 'senado_%')
+                ->pluck('external_id', 'id');
+
+            if ($bills->isEmpty()) {
+                $this->warn('Nenhuma proposição encontrada.');
+
+                return self::FAILURE;
+            }
+
+            $count = 0;
+
+            foreach ($bills as $billId => $externalId) {
+                $tramitacoes = $this->camara->getTramitacaoProposicao((int) $externalId);
+
+                foreach ($tramitacoes as $tramitacao) {
+                    BillProgress::create([
+                        'bill_id' => $billId,
+                        'external_id' => (string) ($tramitacao['sequencia'] ?? ''),
+                        'description' => mb_substr($tramitacao['descricaoSituacao'] ?? $tramitacao['descricaoTramitacao'] ?? '', 0, 500),
+                        'date' => $tramitacao['dataHora'] ?? null,
+                        'sequence_number' => $tramitacao['sequencia'] ?? null,
+                    ]);
+
+                    $count++;
+                }
+
+                $this->rateLimit();
+            }
+
+            $this->finalizarJob($job, $count);
+            $this->info("Importados {$count} registros de tramitação.");
+
+            return self::SUCCESS;
+        } catch (\Throwable $e) {
+            $this->falharJob($job, $e);
+
+            return self::FAILURE;
+        }
+    }
+
+    private function importarAutoresProposicoes(): int
+    {
+        $this->info('Importando co-autores das proposições...');
+
+        $job = $this->criarJob('autores_proposicoes');
+
+        try {
+            $bills = Bill::whereNotNull('external_id')
+                ->where('external_id', 'NOT LIKE', 'senado_%')
+                ->pluck('external_id', 'id');
+
+            if ($bills->isEmpty()) {
+                $this->warn('Nenhuma proposição encontrada.');
+
+                return self::FAILURE;
+            }
+
+            $count = 0;
+
+            foreach ($bills as $billId => $externalId) {
+                $autores = $this->camara->getAutoresProposicao((int) $externalId);
+
+                foreach ($autores as $autor) {
+                    $idAutor = $autor['idDeputadoAutor'] ?? $autor['id'] ?? null;
+                    $nomeAutor = $autor['nome'] ?? $autor['nomeCivil'] ?? '';
+
+                    if (! $nomeAutor) {
+                        continue;
+                    }
+
+                    $politicianId = null;
+                    if ($idAutor) {
+                        $politician = Politician::where('external_id', (string) $idAutor)->first();
+                        $politicianId = $politician?->id;
+                    }
+
+                    BillCoauthor::updateOrCreate(
+                        [
+                            'bill_id' => $billId,
+                            'author_external_id' => (string) ($idAutor ?? ''),
+                        ],
+                        [
+                            'politician_id' => $politicianId,
+                            'author_name' => mb_substr($nomeAutor, 0, 300),
+                        ]
+                    );
+
+                    $count++;
+                }
+
+                $this->rateLimit();
+            }
+
+            $this->finalizarJob($job, $count);
+            $this->info("Importados {$count} co-autores de proposições.");
+
+            return self::SUCCESS;
+        } catch (\Throwable $e) {
+            $this->falharJob($job, $e);
+
+            return self::FAILURE;
+        }
+    }
+
+    private function importarBlocos(): int
+    {
+        $this->info('Importando blocos parlamentares da Câmara...');
+
+        $job = $this->criarJob('blocos_camara');
+
+        try {
+            $blocos = $this->camara->getBlocos();
+            $count = 0;
+
+            foreach ($blocos as $bloco) {
+                $blocModel = ParliamentaryBloc::updateOrCreate(
+                    ['external_id' => (string) ($bloco['id'] ?? '')],
+                    [
+                        'name' => mb_substr($bloco['nome'] ?? '', 0, 500),
+                        'legislature' => $bloco['idLegislatura'] ?? null,
+                        'is_federation' => ($bloco['federacao'] ?? false) === true,
+                    ]
+                );
+
+                $membros = $this->camara->getMembrosBloco((int) ($bloco['id'] ?? 0));
+
+                foreach ($membros as $membro) {
+                    $idDep = $membro['id'] ?? null;
+
+                    if (! $idDep) {
+                        continue;
+                    }
+
+                    $politician = Politician::where('external_id', (string) $idDep)->first();
+
+                    if ($politician) {
+                        $blocModel->members()->syncWithoutDetaching([$politician->id]);
+                    }
+                }
+
+                $count++;
+                $this->rateLimit();
+            }
+
+            $this->finalizarJob($job, $count);
+            $this->info("Importados {$count} blocos parlamentares.");
+
+            return self::SUCCESS;
+        } catch (\Throwable $e) {
+            $this->falharJob($job, $e);
+
+            return self::FAILURE;
+        }
+    }
+
+    private function importarComissoesSenado(): int
+    {
+        $this->info('Importando comissões de senadores...');
+
+        $job = $this->criarJob('comissoes_senado');
+
+        try {
+            $senadores = Politician::where('external_id', 'LIKE', 'senado_%')
+                ->select('id', 'external_id')
+                ->get();
+
+            if ($senadores->isEmpty()) {
+                $this->warn('Nenhum senador encontrado.');
+
+                return self::FAILURE;
+            }
+
+            $count = 0;
+
+            foreach ($senadores as $senador) {
+                $codigo = (int) str_replace('senado_', '', $senador->external_id);
+                $comissoes = $this->senado->getComissoesSenador($codigo);
+
+                foreach ($comissoes as $comissao) {
+                    $ident = $comissao['IdentificacaoComissao'] ?? [];
+
+                    CommitteeMembership::updateOrCreate(
+                        [
+                            'politician_id' => $senador->id,
+                            'source' => 'senado',
+                            'external_id' => (string) ($ident['CodigoComissao'] ?? ''),
+                        ],
+                        [
+                            'name' => mb_substr($ident['NomeComissao'] ?? '', 0, 500),
+                            'acronym' => $ident['SiglaComissao'] ?? null,
+                            'role' => $comissao['DescricaoParticipacao'] ?? null,
+                            'start_date' => $comissao['DataInicio'] ?? null,
+                            'end_date' => $comissao['DataFim'] ?? null,
+                        ]
+                    );
+
+                    $count++;
+                }
+
+                $this->rateLimit();
+            }
+
+            $this->finalizarJob($job, $count);
+            $this->info("Importadas {$count} membros de comissões do Senado.");
+
+            return self::SUCCESS;
+        } catch (\Throwable $e) {
+            $this->falharJob($job, $e);
+
+            return self::FAILURE;
+        }
+    }
+
+    private function importarDiscursosSenado(): int
+    {
+        $this->info('Importando discursos de senadores...');
+
+        $job = $this->criarJob('discursos_senado');
+
+        try {
+            $senadores = Politician::where('external_id', 'LIKE', 'senado_%')
+                ->select('id', 'external_id')
+                ->get();
+
+            if ($senadores->isEmpty()) {
+                $this->warn('Nenhum senador encontrado.');
+
+                return self::FAILURE;
+            }
+
+            $count = 0;
+
+            foreach ($senadores as $senador) {
+                $codigo = (int) str_replace('senado_', '', $senador->external_id);
+                $discursos = $this->senado->getDiscursosSenador($codigo);
+
+                foreach ($discursos as $discurso) {
+                    $data = $discurso['Data'] ?? null;
+
+                    if (! $data) {
+                        continue;
+                    }
+
+                    Speech::updateOrCreate(
+                        [
+                            'politician_id' => $senador->id,
+                            'source' => 'senado',
+                            'date' => $data.' '.($discurso['HoraInicio'] ?? '00:00:00'),
+                        ],
+                        [
+                            'external_id' => (string) ($discurso['CodigoPublicoReunião'] ?? $discurso['Codigo'] ?? ''),
+                            'title' => mb_substr($discurso['NomeOrgao'] ?? '', 0, 500),
+                            'resume' => $discurso['Resumo'] ?? null,
+                            'session_name' => $discurso['NomeOrgao'] ?? null,
+                        ]
+                    );
+
+                    $count++;
+                }
+
+                $this->rateLimit();
+            }
+
+            $this->finalizarJob($job, $count);
+            $this->info("Importados {$count} discursos de senadores.");
+
+            return self::SUCCESS;
+        } catch (\Throwable $e) {
+            $this->falharJob($job, $e);
+
+            return self::FAILURE;
+        }
+    }
+
+    private function importarRelatoriasSenado(): int
+    {
+        $this->info('Importando relatorias de senadores...');
+
+        $job = $this->criarJob('relatorias_senado');
+
+        try {
+            $senadores = Politician::where('external_id', 'LIKE', 'senado_%')
+                ->select('id', 'external_id')
+                ->get();
+
+            if ($senadores->isEmpty()) {
+                $this->warn('Nenhum senador encontrado.');
+
+                return self::FAILURE;
+            }
+
+            $count = 0;
+
+            foreach ($senadores as $senador) {
+                $codigo = (int) str_replace('senado_', '', $senador->external_id);
+                $relatorias = $this->senado->getRelatoriasSenador($codigo);
+
+                foreach ($relatorias as $relatoria) {
+                    $materia = $relatoria['Materia'] ?? [];
+
+                    Rapporteurship::updateOrCreate(
+                        [
+                            'politician_id' => $senador->id,
+                            'bill_external_id' => (string) ($materia['Codigo'] ?? ''),
+                        ],
+                        [
+                            'bill_description' => mb_substr($materia['DescricaoIdentificacao'] ?? '', 0, 500),
+                            'bill_ementa' => $materia['Ementa'] ?? null,
+                            'commission_name' => $relatoria['Comissao']['Nome'] ?? null,
+                            'start_date' => $relatoria['DataDesignacao'] ?? null,
+                            'end_date' => $relatoria['DataDestituicao'] ?? null,
+                            'removal_reason' => $relatoria['DescricaoMotivoDestituicao'] ?? null,
+                        ]
+                    );
+
+                    $count++;
+                }
+
+                $this->rateLimit();
+            }
+
+            $this->finalizarJob($job, $count);
+            $this->info("Importadas {$count} relatorias de senadores.");
+
+            return self::SUCCESS;
+        } catch (\Throwable $e) {
+            $this->falharJob($job, $e);
+
+            return self::FAILURE;
+        }
+    }
+
+    private function importarLiderancasSenado(): int
+    {
+        $this->info('Importando lideranças de senadores...');
+
+        $job = $this->criarJob('liderancas_senado');
+
+        try {
+            $senadores = Politician::where('external_id', 'LIKE', 'senado_%')
+                ->select('id', 'external_id')
+                ->get();
+
+            if ($senadores->isEmpty()) {
+                $this->warn('Nenhum senador encontrado.');
+
+                return self::FAILURE;
+            }
+
+            $count = 0;
+
+            foreach ($senadores as $senador) {
+                $codigo = (int) str_replace('senado_', '', $senador->external_id);
+                $liderancas = $this->senado->getLiderancasSenador($codigo);
+
+                foreach ($liderancas as $lideranca) {
+                    LeadershipPosition::updateOrCreate(
+                        [
+                            'politician_id' => $senador->id,
+                            'position' => mb_substr($lideranca['UnidadeLideranca'] ?? $lideranca['DescricaoTipoLideranca'] ?? '', 0, 300),
+                        ],
+                        [
+                            'party_acronym' => $lideranca['Partido']['SiglaPartido'] ?? null,
+                            'house' => $lideranca['SiglaCasaLideranca'] ?? null,
+                            'start_date' => $lideranca['DataDesignacao'] ?? null,
+                            'end_date' => $lideranca['DataFim'] ?? null,
+                        ]
+                    );
+
+                    $count++;
+                }
+
+                $this->rateLimit();
+            }
+
+            $this->finalizarJob($job, $count);
+            $this->info("Importadas {$count} lideranças de senadores.");
 
             return self::SUCCESS;
         } catch (\Throwable $e) {

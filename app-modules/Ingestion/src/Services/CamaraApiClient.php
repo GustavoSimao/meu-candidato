@@ -352,6 +352,131 @@ class CamaraApiClient
         ]];
     }
 
+    public function getDiscursosDeputado(int $idDeputado, int $pagina = 1, int $itensPorPagina = 20): array
+    {
+        $response = $this->requestWithRetry('get', self::BASE_URL.'/deputados/'.$idDeputado.'/discursos', [
+            'itens' => $itensPorPagina,
+            'pagina' => $pagina,
+            'ordem' => 'DESC',
+            'ordenarPor' => 'dataHoraInicio',
+        ]);
+
+        if ($response === null || $response->failed()) {
+            return [];
+        }
+
+        return $response->json('dados', []);
+    }
+
+    public function getEventosDeputado(int $idDeputado, int $pagina = 1, int $itensPorPagina = 20): array
+    {
+        $response = $this->requestWithRetry('get', self::BASE_URL.'/deputados/'.$idDeputado.'/eventos', [
+            'itens' => $itensPorPagina,
+            'pagina' => $pagina,
+            'ordem' => 'DESC',
+            'ordenarPor' => 'dataInicio',
+        ]);
+
+        if ($response === null || $response->failed()) {
+            return [];
+        }
+
+        return $response->json('dados', []);
+    }
+
+    public function getFrentesDeputado(int $idDeputado): array
+    {
+        $response = $this->requestWithRetry('get', self::BASE_URL.'/deputados/'.$idDeputado.'/frentes');
+
+        if ($response === null || $response->failed()) {
+            return [];
+        }
+
+        return $response->json('dados', []);
+    }
+
+    public function getOrgaosDeputado(int $idDeputado): array
+    {
+        $response = $this->requestWithRetry('get', self::BASE_URL.'/deputados/'.$idDeputado.'/orgaos');
+
+        if ($response === null || $response->failed()) {
+            return [];
+        }
+
+        return $response->json('dados', []);
+    }
+
+    public function getOrientacoesVotacao(string $idVotacao): array
+    {
+        $response = $this->requestWithRetry('get', self::BASE_URL.'/votacoes/'.$idVotacao.'/orientacoes');
+
+        if ($response === null || $response->failed()) {
+            return [];
+        }
+
+        return $response->json('dados', []);
+    }
+
+    public function getTemasProposicao(int $idProposicao): array
+    {
+        $response = $this->requestWithRetry('get', self::BASE_URL.'/proposicoes/'.$idProposicao.'/temas');
+
+        if ($response === null || $response->failed()) {
+            return [];
+        }
+
+        return $response->json('dados', []);
+    }
+
+    public function getTramitacaoProposicao(int $idProposicao): array
+    {
+        $response = $this->requestWithRetry('get', self::BASE_URL.'/proposicoes/'.$idProposicao.'/tramitacoes');
+
+        if ($response === null || $response->failed()) {
+            return [];
+        }
+
+        return $response->json('dados', []);
+    }
+
+    public function getAutoresProposicao(int $idProposicao): array
+    {
+        $response = $this->requestWithRetry('get', self::BASE_URL.'/proposicoes/'.$idProposicao.'/autores');
+
+        if ($response === null || $response->failed()) {
+            return [];
+        }
+
+        return $response->json('dados', []);
+    }
+
+    public function getBlocos(int $pagina = 1, int $itensPorPagina = 100): array
+    {
+        $response = $this->requestWithRetry('get', self::BASE_URL.'/blocos', [
+            'itens' => $itensPorPagina,
+            'pagina' => $pagina,
+            'ordem' => 'ASC',
+            'ordenarPor' => 'nome',
+        ]);
+
+        if ($response === null || $response->failed()) {
+            return [];
+        }
+
+        return $response->json('dados', []);
+    }
+
+    public function getMembrosBloco(int $idBloco): array
+    {
+        $response = $this->requestWithRetry('get', self::BASE_URL.'/blocos/'.$idBloco.'/membros');
+
+        if ($response === null || $response->failed()) {
+            return [];
+        }
+
+        return $response->json('dados', []);
+    }
+
     public function getTotalDeputados(): int
     {
         $response = $this->requestWithRetry('get', self::BASE_URL.'/deputados', [

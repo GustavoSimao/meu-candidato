@@ -282,6 +282,199 @@
             </div>
         @endif
 
+        {{-- Comissões e Órgãos --}}
+        @if (count($p['committees']) > 0)
+            <div class="mb-8">
+                <flux:heading size="lg" level="2">Comissões e Órgãos</flux:heading>
+                <div class="mt-3 space-y-2">
+                    @foreach (array_slice($p['committees'], 0, 5) as $committee)
+                        <div class="flex items-center gap-3 bg-white border border-zinc-200 rounded-lg px-4 py-3">
+                            <div class="w-2 h-2 rounded-full bg-violet-500 flex-shrink-0"></div>
+                            <div class="flex-1 min-w-0">
+                                <p class="text-sm text-zinc-900 font-medium">
+                                    {{ $committee['acronym'] ? $committee['acronym'].' — ' : '' }}{{ $committee['name'] }}
+                                </p>
+                                <p class="text-xs text-zinc-500">
+                                    {{ $committee['role'] ?? 'Membro' }}
+                                    @if ($committee['start_date'])
+                                        · Desde {{ $committee['start_date'] }}
+                                    @endif
+                                    · {{ ucfirst($committee['source']) }}
+                                </p>
+                            </div>
+                        </div>
+                    @endforeach
+                    @if (count($p['committees']) > 5)
+                        <p class="text-xs text-zinc-500 text-center">+ {{ count($p['committees']) - 5 }} comissões</p>
+                    @endif
+                </div>
+            </div>
+        @endif
+
+        {{-- Frentes Parlamentares --}}
+        @if (count($p['fronts']) > 0)
+            <div class="mb-8">
+                <flux:heading size="lg" level="2">Frentes Parlamentares</flux:heading>
+                <div class="mt-3 flex flex-wrap gap-2">
+                    @foreach ($p['fronts'] as $front)
+                        <span class="inline-flex items-center gap-1.5 text-xs font-medium px-2.5 py-1 rounded-full bg-violet-50 text-violet-700 border border-violet-200">
+                            {{ $front['title'] }}
+                            @if ($front['legislature'])
+                                <span class="text-violet-400">· {{ $front['legislature'] }}ª</span>
+                            @endif
+                        </span>
+                    @endforeach
+                </div>
+            </div>
+        @endif
+
+        {{-- Discursos --}}
+        @if (count($p['speeches']) > 0)
+            <div class="mb-8">
+                <div class="flex items-center justify-between">
+                    <flux:heading size="lg" level="2">Discursos</flux:heading>
+                    <span class="text-xs text-zinc-500">{{ $p['speeches_count'] }} no total</span>
+                </div>
+                <div class="mt-3 space-y-2">
+                    @foreach ($p['speeches'] as $speech)
+                        <div class="bg-white border border-zinc-200 rounded-lg px-4 py-3">
+                            <div class="flex items-start justify-between gap-3">
+                                <div class="min-w-0">
+                                    <p class="text-sm text-zinc-900 font-medium line-clamp-2">{{ $speech['title'] }}</p>
+                                    <p class="text-xs text-zinc-500 mt-1">
+                                        {{ $speech['date'] }}
+                                        @if ($speech['session_name']) · {{ $speech['session_name'] }} @endif
+                                        · {{ $speech['source'] === 'camara' ? 'Câmara' : 'Senado' }}
+                                    </p>
+                                </div>
+                                @if ($speech['uri'])
+                                    <a href="{{ $speech['uri'] }}" target="_blank" rel="noopener" class="flex-shrink-0">
+                                        <svg class="w-4 h-4 text-zinc-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"/></svg>
+                                    </a>
+                                @endif
+                            </div>
+                        </div>
+                    @endforeach
+                </div>
+            </div>
+        @endif
+
+        {{-- Presença / Eventos --}}
+        @if (count($p['events']) > 0)
+            <div class="mb-8">
+                <div class="flex items-center justify-between">
+                    <flux:heading size="lg" level="2">Presença em Eventos</flux:heading>
+                    <span class="text-xs text-zinc-500">{{ $p['events_count'] }} no total</span>
+                </div>
+                <div class="mt-3 space-y-2">
+                    @foreach ($p['events'] as $event)
+                        <div class="flex items-center gap-3 bg-white border border-zinc-200 rounded-lg px-4 py-3">
+                            <div class="w-2 h-2 rounded-full bg-sky-500 flex-shrink-0"></div>
+                            <div class="flex-1 min-w-0">
+                                <p class="text-sm text-zinc-900 line-clamp-1">{{ $event['title'] }}</p>
+                                <p class="text-xs text-zinc-500">
+                                    {{ $event['date'] }}
+                                    @if ($event['type']) · {{ $event['type'] }} @endif
+                                    @if ($event['location']) · {{ $event['location'] }} @endif
+                                </p>
+                            </div>
+                        </div>
+                    @endforeach
+                </div>
+            </div>
+        @endif
+
+        {{-- Lideranças --}}
+        @if (count($p['leaderships']) > 0)
+            <div class="mb-8">
+                <flux:heading size="lg" level="2">Lideranças</flux:heading>
+                <div class="mt-3 space-y-2">
+                    @foreach ($p['leaderships'] as $leadership)
+                        <div class="flex items-center gap-3 bg-white border border-zinc-200 rounded-lg px-4 py-3">
+                            <div class="w-2 h-2 rounded-full bg-amber-500 flex-shrink-0"></div>
+                            <div class="flex-1 min-w-0">
+                                <p class="text-sm text-zinc-900 font-medium">{{ $leadership['position'] }}</p>
+                                <p class="text-xs text-zinc-500">
+                                    @if ($leadership['party']) {{ $leadership['party'] }} · @endif
+                                    @if ($leadership['house']) {{ $leadership['house'] }} · @endif
+                                    {{ $leadership['start_date'] ?? '—' }} — {{ $leadership['end_date'] ?? 'Atual' }}
+                                </p>
+                            </div>
+                        </div>
+                    @endforeach
+                </div>
+            </div>
+        @endif
+
+        {{-- Relatorias --}}
+        @if (count($p['rapporteurships']) > 0)
+            <div class="mb-8">
+                <flux:heading size="lg" level="2">Relatorias</flux:heading>
+                <div class="mt-3 space-y-2">
+                    @foreach (array_slice($p['rapporteurships'], 0, 5) as $rapport)
+                        <div class="bg-white border border-zinc-200 rounded-lg px-4 py-3">
+                            <div class="min-w-0">
+                                <p class="text-sm text-zinc-900 font-medium line-clamp-1">{{ $rapport['bill_description'] ?? '—' }}</p>
+                                @if ($rapport['bill_ementa'])
+                                    <p class="text-xs text-zinc-500 mt-1 line-clamp-2">{{ $rapport['bill_ementa'] }}</p>
+                                @endif
+                                <p class="text-xs text-zinc-500 mt-1">
+                                    @if ($rapport['commission']) {{ $rapport['commission'] }} · @endif
+                                    {{ $rapport['start_date'] ?? '—' }} — {{ $rapport['end_date'] ?? 'Atual' }}
+                                    @if ($rapport['removal_reason']) · {{ $rapport['removal_reason'] }} @endif
+                                </p>
+                            </div>
+                        </div>
+                    @endforeach
+                    @if (count($p['rapporteurships']) > 5)
+                        <p class="text-xs text-zinc-500 text-center">+ {{ count($p['rapporteurships']) - 5 }} relatorias</p>
+                    @endif
+                </div>
+            </div>
+        @endif
+
+        {{-- Co-autores --}}
+        @if (count($p['coauthors']) > 0)
+            <div class="mb-8">
+                <flux:heading size="lg" level="2">Co-autores de Proposições</flux:heading>
+                <div class="mt-3 space-y-2">
+                    @foreach (array_slice($p['coauthors'], 0, 5) as $coauthor)
+                        <div class="flex items-center gap-3 bg-white border border-zinc-200 rounded-lg px-4 py-3">
+                            <div class="w-2 h-2 rounded-full bg-teal-500 flex-shrink-0"></div>
+                            <div class="flex-1 min-w-0">
+                                <p class="text-sm text-zinc-900 line-clamp-1">{{ $coauthor['author_name'] }}</p>
+                                <p class="text-xs text-zinc-500">{{ $coauthor['bill_title'] }}</p>
+                            </div>
+                        </div>
+                    @endforeach
+                    @if (count($p['coauthors']) > 5)
+                        <p class="text-xs text-zinc-500 text-center">+ {{ count($p['coauthors']) - 5 }} co-autores</p>
+                    @endif
+                </div>
+            </div>
+        @endif
+
+        {{-- Blocos Parlamentares --}}
+        @if (count($p['blocs']) > 0)
+            <div class="mb-8">
+                <flux:heading size="lg" level="2">Blocos Parlamentares</flux:heading>
+                <div class="mt-3 space-y-2">
+                    @foreach ($p['blocs'] as $bloc)
+                        <div class="flex items-center gap-3 bg-white border border-zinc-200 rounded-lg px-4 py-3">
+                            <div class="w-2 h-2 rounded-full bg-rose-500 flex-shrink-0"></div>
+                            <div class="flex-1 min-w-0">
+                                <p class="text-sm text-zinc-900 font-medium">{{ $bloc['name'] }}</p>
+                                <p class="text-xs text-zinc-500">
+                                    {{ $bloc['is_federation'] ? 'Federação' : 'Bloco' }}
+                                    @if ($bloc['legislature']) · {{ $bloc['legislature'] }}ª Legislatura @endif
+                                </p>
+                            </div>
+                        </div>
+                    @endforeach
+                </div>
+            </div>
+        @endif
+
         {{-- Voltar --}}
         <div class="mt-10 pt-6 border-t border-zinc-200">
             <flux:button wire:navigate href="{{ route('politicos') }}" variant="ghost">

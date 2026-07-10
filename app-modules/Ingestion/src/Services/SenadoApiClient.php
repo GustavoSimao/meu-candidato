@@ -154,6 +154,71 @@ class SenadoApiClient
         return $result;
     }
 
+    public function getComissoesSenador(int $codigo): array
+    {
+        $response = $this->requestWithRetry('get', self::BASE_URL.'/senador/'.$codigo.'/comissoes');
+
+        if ($response === null || $response->failed()) {
+            return [];
+        }
+
+        $data = $response->json('MembroComissaoParlamentar.Parlamentar.MembroComissoes.Comissao');
+
+        return $this->normalizeToArray($data);
+    }
+
+    public function getDiscursosSenador(int $codigo): array
+    {
+        $response = $this->requestWithRetry('get', self::BASE_URL.'/senador/'.$codigo.'/discursos');
+
+        if ($response === null || $response->failed()) {
+            return [];
+        }
+
+        $data = $response->json('DiscursosParlamentar.Parlamentar.Pronunciamentos.Pronunciamento');
+
+        return $this->normalizeToArray($data);
+    }
+
+    public function getLiderancasSenador(int $codigo): array
+    {
+        $response = $this->requestWithRetry('get', self::BASE_URL.'/senador/'.$codigo.'/liderancas');
+
+        if ($response === null || $response->failed()) {
+            return [];
+        }
+
+        $data = $response->json('LiderancaParlamentar.Parlamentar.Liderancas.Lideranca');
+
+        return $this->normalizeToArray($data);
+    }
+
+    public function getRelatoriasSenador(int $codigo): array
+    {
+        $response = $this->requestWithRetry('get', self::BASE_URL.'/senador/'.$codigo.'/relatorias');
+
+        if ($response === null || $response->failed()) {
+            return [];
+        }
+
+        $data = $response->json('MateriasRelatoriaParlamentar.Parlamentar.Relatorias.Relatoria');
+
+        return $this->normalizeToArray($data);
+    }
+
+    public function getComissoes(): array
+    {
+        $response = $this->requestWithRetry('get', self::BASE_URL.'/comissao/lista/colegiados');
+
+        if ($response === null || $response->failed()) {
+            return [];
+        }
+
+        $data = $response->json('ListaColegiados.Colegiados.Colegiado');
+
+        return $this->normalizeToArray($data);
+    }
+
     public function getPartidos(): array
     {
         $response = $this->requestWithRetry('get', self::BASE_URL.'/senador/lista/atual');

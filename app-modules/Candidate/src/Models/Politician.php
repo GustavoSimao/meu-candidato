@@ -7,6 +7,16 @@ use Illuminate\Database\Eloquent\Model;
 use MeuCandidato\Geography\Models\Address;
 use MeuCandidato\Identity\Models\Follow;
 use MeuCandidato\Legislative\Models\Bill;
+use MeuCandidato\Legislative\Models\BillCoauthor;
+use MeuCandidato\Legislative\Models\BillProgress;
+use MeuCandidato\Legislative\Models\BillTheme;
+use MeuCandidato\Legislative\Models\CommitteeMembership;
+use MeuCandidato\Legislative\Models\Event;
+use MeuCandidato\Legislative\Models\LeadershipPosition;
+use MeuCandidato\Legislative\Models\ParliamentaryBloc;
+use MeuCandidato\Legislative\Models\ParliamentaryFront;
+use MeuCandidato\Legislative\Models\Rapporteurship;
+use MeuCandidato\Legislative\Models\Speech;
 use MeuCandidato\Legislative\Models\Vote;
 use MeuCandidato\Mandate\Models\Mandate;
 use MeuCandidato\Party\Models\Party;
@@ -96,6 +106,57 @@ class Politician extends Model
     public function expenses()
     {
         return $this->hasMany(Expense::class);
+    }
+
+    public function speeches()
+    {
+        return $this->hasMany(Speech::class);
+    }
+
+    public function events()
+    {
+        return $this->hasMany(Event::class);
+    }
+
+    public function parliamentaryFronts()
+    {
+        return $this->hasMany(ParliamentaryFront::class);
+    }
+
+    public function committeeMemberships()
+    {
+        return $this->hasMany(CommitteeMembership::class);
+    }
+
+    public function leadershipPositions()
+    {
+        return $this->hasMany(LeadershipPosition::class);
+    }
+
+    public function rapporteurships()
+    {
+        return $this->hasMany(Rapporteurship::class);
+    }
+
+    public function billThemes()
+    {
+        return $this->hasManyThrough(BillTheme::class, Bill::class, 'author_id', 'bill_id');
+    }
+
+    public function billProgress()
+    {
+        return $this->hasManyThrough(BillProgress::class, Bill::class, 'author_id', 'bill_id');
+    }
+
+    public function billCoauthors()
+    {
+        return $this->hasMany(BillCoauthor::class);
+    }
+
+    public function parliamentaryBlocs()
+    {
+        return $this->belongsToMany(ParliamentaryBloc::class, 'parliamentary_bloc_members', 'politician_id', 'bloc_id')
+            ->withTimestamps();
     }
 
     public function followers()

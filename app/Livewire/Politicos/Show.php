@@ -73,7 +73,13 @@ class Show extends Component
             'mandates',
             'latestAddress',
             'badges',
-        ])->withCount(['bills', 'expenses', 'votes'])->find($this->id);
+            'committeeMemberships',
+            'parliamentaryFronts',
+            'leadershipPositions',
+            'rapporteurships',
+            'billCoauthors',
+            'parliamentaryBlocs',
+        ])->withCount(['bills', 'expenses', 'votes', 'speeches', 'events'])->find($this->id);
 
         if (! $p) {
             return null;
@@ -100,6 +106,16 @@ class Show extends Component
             ->orderByDesc('document_date')
             ->limit(3)
             ->get(['id', 'type', 'description', 'value', 'document_date']);
+
+        $speeches = $p->speeches()
+            ->orderByDesc('date')
+            ->limit(5)
+            ->get(['id', 'source', 'title', 'resume', 'date', 'session_name', 'uri']);
+
+        $events = $p->events()
+            ->orderByDesc('start_date')
+            ->limit(5)
+            ->get(['id', 'title', 'type', 'start_date', 'location']);
 
         $expenseAgg = DB::table('expenses')
             ->where('politician_id', $p->id)
@@ -160,6 +176,59 @@ class Show extends Component
                 'color' => $b->color,
                 'type' => $b->badge_type,
                 'description' => $b->description,
+            ])->values()->all(),
+            'speeches_count' => $p->speeches_count,
+            'events_count' => $p->events_count,
+            'speeches' => $speeches->map(fn ($s) => [
+                'id' => $s->id,
+                'source' => $s->source,
+                'title' => $s->title ?? $s->resume ?? '—',
+                'date' => $s->date ? date('d/m/Y', strtotime($s->date)) : null,
+                'session_name' => $s->session_name,
+                'uri' => $s->uri,
+            ])->values()->all(),
+            'events' => $events->map(fn ($e) => [
+                'id' => $e->id,
+                'title' => $e->title,
+                'type' => $e->type,
+                'date' => $e->start_date ? date('d/m/Y', strtotime($e->start_date)) : null,
+                'location' => $e->location,
+            ])->values()->all(),
+            'committees' => $p->committeeMemberships->map(fn ($c) => [
+                'name' => $c->name,
+                'acronym' => $c->acronym,
+                'role' => $c->role,
+                'source' => $c->source,
+                'start_date' => $c->start_date?->format('d/m/Y'),
+                'end_date' => $c->end_date?->format('d/m/Y'),
+            ])->values()->all(),
+            'fronts' => $p->parliamentaryFronts->map(fn ($f) => [
+                'title' => $f->title,
+                'legislature' => $f->legislature,
+            ])->values()->all(),
+            'leaderships' => $p->leadershipPositions->map(fn ($l) => [
+                'position' => $l->position,
+                'party' => $l->party_acronym,
+                'house' => $l->house,
+                'start_date' => $l->start_date?->format('d/m/Y'),
+                'end_date' => $l->end_date?->format('d/m/Y'),
+            ])->values()->all(),
+            'rapporteurships' => $p->rapporteurships->map(fn ($r) => [
+                'bill_description' => $r->bill_description,
+                'bill_ementa' => $r->bill_ementa,
+                'commission' => $r->commission_name,
+                'start_date' => $r->start_date?->format('d/m/Y'),
+                'end_date' => $r->end_date?->format('d/m/Y'),
+                'removal_reason' => $r->removal_reason,
+            ])->values()->all(),
+            'coauthors' => $p->billCoauthors->map(fn ($ca) => [
+                'author_name' => $ca->author_name,
+                'bill_title' => $ca->bill?->title ?? '—',
+            ])->values()->all(),
+            'blocs' => $p->parliamentaryBlocs->map(fn ($b) => [
+                'name' => $b->name,
+                'is_federation' => $b->is_federation,
+                'legislature' => $b->legislature,
             ])->values()->all(),
         ];
     }
