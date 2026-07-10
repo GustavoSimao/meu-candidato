@@ -21,9 +21,10 @@ use MeuCandidato\Transparency\Models\Expense;
 class ImportarDadosCommand extends Command
 {
     protected $signature = 'importar-dados
-                            {subcomando? : Subcomando a executar (partidos, deputados, senadores, mandatos, proposicoes, votacoes, votacoes-sessoes, votos, despesas, despesas-ceap, despesas-deputados, financiamento-campanha, senador-votos, senador-autorias, todos)}
+                            {subcomando? : Subcomando a executar (partidos, deputados, senadores, mandatos, proposicoes, votacoes, votacoes-sessoes, votos, despesas, despesas-ceap, despesas-deputados, despesas-mes, financiamento-campanha, senador-votos, senador-autorias, todos)}
                             {--ano-inicio=2001 : Ano inicial para dados legislativos}
-                            {--ano-fim= : Ano final (padrão: ano atual)}';
+                            {--ano-fim= : Ano final (padrão: ano atual)}
+                            {--mes= : Mês para despesas-mes (1-12, obrigatório)}';
 
     protected $description = 'Importa dados reais de APIs governamentais (Câmara, Senado, TSE)';
 
@@ -110,6 +111,7 @@ class ImportarDadosCommand extends Command
             'despesas' => $this->importarDespesas($anoInicio, $anoFim),
             'despesas-ceap' => $this->importarDespesasCeap($anoInicio, $anoFim),
             'despesas-deputados' => $this->importarDespesasPorDeputado($anoInicio, $anoFim),
+            'despesas-mes' => $this->importarDespesasMes($anoFim),
             'financiamento-campanha' => $this->importarFinanciamentoCampanha($anoFim),
             'senador-votos' => $this->importarVotosSenadores(),
             'senador-autorias' => $this->importarAutoriasSenadores(),
@@ -120,7 +122,7 @@ class ImportarDadosCommand extends Command
 
     private function errorSubcomando(string $subcomando): int
     {
-        $this->error("Subcomando '{$subcomando}' não encontrado. Opções: partidos, deputados, senadores, mandatos, proposicoes, votacoes, votacoes-sessoes, votos, despesas, despesas-ceap, despesas-deputados, financiamento-campanha, senador-votos, senador-autorias, todos");
+        $this->error("Subcomando '{$subcomando}' não encontrado. Opções: partidos, deputados, senadores, mandatos, proposicoes, votacoes, votacoes-sessoes, votos, despesas, despesas-ceap, despesas-deputados, despesas-mes, financiamento-campanha, senador-votos, senador-autorias, todos");
 
         return self::FAILURE;
     }
@@ -794,6 +796,81 @@ class ImportarDadosCommand extends Command
 
             $this->finalizarJob($job, $count);
             $this->info("Importadas {$count} despesas por deputado.");
+
+            return self::SUCCESS;
+        } catch (\Throwable $e) {
+            $this->falharJob($job, $e);
+
+            return self::FAILURE;
+        }
+    }
+
+    private function importarDespesasMes(int $anoFim): int
+    {
+        $mes = $this->option('mes') ? (int) $this->option('mes') : null;
+
+        if ($mes === null || $mes < 1 || $mes > 12) {
+            $this->error('A opção --mes= é obrigatória para despesas-mes (1-12).');
+
+            return self::FAILURE;
+        }
+
+        $ano = $anoFim;
+        $this->info("Importando despesas de {$mes}/{$ano} por deputado...");
+
+        $job = $this->criarJob('despesas_mes');
+
+        try {
+            $deputados = Politician::whereNotNull('external_id')
+                ->where('position', 'Deputado Federal')
+                ->pluck('external_id', 'id');
+
+            if ($deputados->isEmpty()) {
+                $this->warn('Nenhum deputado encontrado. Execute primeiro: importar-dados deputados');
+
+                return self::FAILURE;
+            }
+
+            $count = 0;
+            $total = $deputados->count();
+
+            foreach ($deputados as $politicianId => $externalId) {
+                $this->info("  Deputado {$externalId} ({$count}/{$total})...");
+                $pagina = 1;
+
+                do {
+                    $despesas = $this->camara->getDespesasDeputado((int) $externalId, $ano, $pagina, 100, $mes);
+
+                    foreach ($despesas as $despesa) {
+                        $tipoDespesa = $despesa['tipoDespesa'] ?? '';
+                        $valor = $despesa['valorLiquido'] ?? $despesa['valorDocumento'] ?? 0;
+                        $cnpjCpf = $despesa['cnpjCpfFornecedor'] ?? '';
+
+                        Expense::updateOrCreate(
+                            [
+                                'politician_id' => $politicianId,
+                                'year' => $ano,
+                                'type' => mb_substr($tipoDespesa, 0, 500),
+                                'document_number' => mb_substr($despesa['numDocumento'] ?? '', 0, 100),
+                                'document_date' => $despesa['dataDocumento'] ?? null,
+                            ],
+                            [
+                                'description' => mb_substr($despesa['nomeFornecedor'] ?? '', 0, 500),
+                                'value' => $valor,
+                                'supplier_cnpj_cpf' => mb_substr($cnpjCpf, 0, 20),
+                            ]
+                        );
+
+                        $count++;
+                    }
+
+                    $this->rateLimit();
+                    $pagina++;
+                } while (count($despesas) === 100 && $pagina <= self::MAX_PAGINATION_PAGES);
+            }
+
+            $this->finalizarJob($job, $count);
+            $this->info("Importadas {$count} despesas para {$mes}/{$ano}.");
 
             return self::SUCCESS;
         } catch (\Throwable $e) {

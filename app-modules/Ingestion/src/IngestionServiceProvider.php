@@ -5,6 +5,7 @@ namespace MeuCandidato\Ingestion;
 use Illuminate\Support\ServiceProvider;
 use MeuCandidato\Ingestion\Commands\AtualizarDadosCommand;
 use MeuCandidato\Ingestion\Commands\ImportarDadosCommand;
+use MeuCandidato\Ingestion\Commands\VincularVotosBillsCommand;
 
 class IngestionServiceProvider extends ServiceProvider
 {
@@ -17,6 +18,7 @@ class IngestionServiceProvider extends ServiceProvider
             $this->commands([
                 ImportarDadosCommand::class,
                 AtualizarDadosCommand::class,
+                VincularVotosBillsCommand::class,
             ]);
         }
     }

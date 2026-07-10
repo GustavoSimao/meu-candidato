@@ -144,6 +144,17 @@ class CamaraApiClient
         return $response->json('dados', []);
     }
 
+    public function getVotacao(string $idVotacao): ?array
+    {
+        $response = $this->requestWithRetry('get', self::BASE_URL.'/votacoes/'.$idVotacao);
+
+        if ($response === null || $response->failed()) {
+            return null;
+        }
+
+        return $response->json('dados', []);
+    }
+
     public function getVotosVotacao(string $idVotacao): array
     {
         $response = $this->requestWithRetry('get', self::BASE_URL.'/votacoes/'.$idVotacao.'/votos');

@@ -178,4 +178,28 @@ class ImportarDadosCommandTest extends TestCase
             'external_id' => 'senado_PL_9999_2024',
         ]);
     }
+
+    public function test_despesas_mes_requires_mes_option(): void
+    {
+        $this->artisan('importar-dados', ['subcomando' => 'despesas-mes'])
+            ->assertExitCode(1);
+    }
+
+    public function test_despesas_mes_fails_with_no_deputies(): void
+    {
+        $this->artisan('importar-dados', ['subcomando' => 'despesas-mes', '--mes' => '6'])
+            ->assertExitCode(1);
+    }
+
+    public function test_vincular_votos_bills_command_exists(): void
+    {
+        $this->artisan('vincular-votos-bills')
+            ->assertExitCode(0);
+    }
+
+    public function test_vincular_votos_bills_with_no_sessions(): void
+    {
+        $this->artisan('vincular-votos-bills', ['--dias' => '1'])
+            ->assertExitCode(0);
+    }
 }
