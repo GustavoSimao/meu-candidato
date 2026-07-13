@@ -221,7 +221,20 @@
                 <div class="px-4 pb-4 border-t border-zinc-100">
                     {{-- Proposições --}}
                     <div class="mt-3">
-                        <p class="text-xs font-medium text-zinc-500 uppercase mb-2">Proposições</p>
+                        <div class="flex items-center gap-1.5 mb-2">
+                            <p class="text-xs font-medium text-zinc-500 uppercase">Proposições</p>
+                            <div class="relative group" x-data="{ open: false }">
+                                <button @click="open = !open" @mouseenter="open = true" @mouseleave="open = false" class="w-4 h-4 rounded-full bg-zinc-200 text-zinc-500 text-[10px] font-bold flex items-center justify-center hover:bg-zinc-300 transition">?</button>
+                                <div x-show="open" x-transition:enter="transition ease-out duration-100" x-transition:enter-start="opacity-0 scale-95" x-transition:enter-end="opacity-100 scale-100" x-transition:leave="transition ease-in duration-75" x-transition:leave-start="opacity-100 scale-100" x-transition:leave-end="opacity-0 scale-95" class="absolute left-0 top-6 z-50 w-64 p-3 bg-zinc-900 text-white text-xs rounded-lg shadow-lg" @click.away="open = false">
+                                    <p class="font-medium mb-1">O que são proposições?</p>
+                                    <p class="text-zinc-300">Projetos de lei, emendas, resoluções e outras matérias apresentadas por parlamentares. Inclui projetos de autoria própria e coautoria (quando o político assina junto com outros parlamentares).</p>
+                                    <div class="absolute -top-1 left-3 w-2 h-2 bg-zinc-900 rotate-45"></div>
+                                </div>
+                            </div>
+                        </div>
+                        @if ($p['last_bill_year'])
+                            <p class="text-[11px] text-zinc-400 mb-2">Última proposição: {{ $p['last_bill_year'] }}</p>
+                        @endif
                         @if (count($p['bills']) > 0)
                             <div class="space-y-2">
                                 @foreach ($p['bills'] as $bill)
@@ -250,7 +263,20 @@
 
                     {{-- Votos --}}
                     <div class="mt-4">
-                        <p class="text-xs font-medium text-zinc-500 uppercase mb-2">Votos</p>
+                        <div class="flex items-center gap-1.5 mb-2">
+                            <p class="text-xs font-medium text-zinc-500 uppercase">Votos</p>
+                            <div class="relative group" x-data="{ open: false }">
+                                <button @click="open = !open" @mouseenter="open = true" @mouseleave="open = false" class="w-4 h-4 rounded-full bg-zinc-200 text-zinc-500 text-[10px] font-bold flex items-center justify-center hover:bg-zinc-300 transition">?</button>
+                                <div x-show="open" x-transition:enter="transition ease-out duration-100" x-transition:enter-start="opacity-0 scale-95" x-transition:enter-end="opacity-100 scale-100" x-transition:leave="transition ease-in duration-75" x-transition:leave-start="opacity-100 scale-100" x-transition:leave-end="opacity-0 scale-95" class="absolute left-0 top-6 z-50 w-64 p-3 bg-zinc-900 text-white text-xs rounded-lg shadow-lg" @click.away="open = false">
+                                    <p class="font-medium mb-1">O que são votos?</p>
+                                    <p class="text-zinc-300">Registros de como o político votou nas sessões plenárias. Cada voto é vinculado a uma proposição específica (projeto de lei, emenda, etc.) e pode ser Sim, Não, Abstenção ou Outros.</p>
+                                    <div class="absolute -top-1 left-3 w-2 h-2 bg-zinc-900 rotate-45"></div>
+                                </div>
+                            </div>
+                        </div>
+                        @if ($p['last_vote_date'])
+                            <p class="text-[11px] text-zinc-400 mb-2">Último voto registrado: {{ $p['last_vote_date'] }}</p>
+                        @endif
                         @if (count($p['votes']) > 0)
                             <div class="space-y-2">
                                 @foreach ($p['votes'] as $vote)

@@ -149,6 +149,11 @@ class Show extends Component
             ->orWhereHas('coauthors', fn ($cq) => $cq->where('politician_id', $p->id)))
             ->count();
 
+        $lastBill = Bill::where(fn ($q) => $q->where('author_id', $p->id)
+            ->orWhereHas('coauthors', fn ($cq) => $cq->where('politician_id', $p->id)))
+            ->orderByDesc('year')
+            ->first(['year', 'created_at']);
+
         $bills = Bill::where(fn ($q) => $q->where('author_id', $p->id)
             ->orWhereHas('coauthors', fn ($cq) => $cq->where('politician_id', $p->id)))
             ->with(['themes', 'progress' => function ($q) {
@@ -159,6 +164,11 @@ class Show extends Component
             ->get([
                 'id', 'external_id', 'title', 'description', 'status', 'year',
             ]);
+
+        $lastVote = $p->votes()
+            ->join('voting_sessions', 'votes.voting_session_id', '=', 'voting_sessions.id')
+            ->orderByDesc('voting_sessions.date')
+            ->first(['voting_sessions.date']);
 
         $votes = $p->votes()
             ->join('voting_sessions', 'votes.voting_session_id', '=', 'voting_sessions.id')
@@ -239,6 +249,8 @@ class Show extends Component
             'bills_count' => $billsCount,
             'expenses_count' => $p->expenses_count,
             'votes_count' => $p->votes_count,
+            'last_bill_year' => $lastBill?->year,
+            'last_vote_date' => $lastVote?->date ? date('d/m/Y', strtotime($lastVote->date)) : null,
             'mandates' => $p->mandates->sortByDesc('started_at')->map(fn ($m) => [
                 'position' => $m->position,
                 'started_at' => $m->started_at?->format('d/m/Y'),
