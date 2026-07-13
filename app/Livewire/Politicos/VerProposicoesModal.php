@@ -2,17 +2,20 @@
 
 namespace App\Livewire\Politicos;
 
+use App\Support\CaseInsensitiveSearch;
 use Illuminate\Contracts\View\View;
 use Illuminate\Pagination\LengthAwarePaginator;
+use Livewire\Attributes\On;
 use Livewire\Component;
 use Livewire\WithPagination;
 use MeuCandidato\Legislative\Models\Bill;
 
 class VerProposicoesModal extends Component
 {
+    use CaseInsensitiveSearch;
     use WithPagination;
 
-    public string $politicianId;
+    public ?string $politicianId = null;
 
     public bool $isOpen = false;
 
@@ -23,6 +26,7 @@ class VerProposicoesModal extends Component
         $this->politicianId = $politicianId;
     }
 
+    #[On('openProposicoesModal')]
     public function open(): void
     {
         $this->isOpen = true;
@@ -42,11 +46,12 @@ class VerProposicoesModal extends Component
             ]);
         }
 
-        $bills = Bill::where('author_id', $this->politicianId)
+        $bills = Bill::where(fn ($q) => $q->where('author_id', $this->politicianId)
+            ->orWhereHas('coauthors', fn ($cq) => $cq->where('politician_id', $this->politicianId)))
             ->when($this->search, function ($q) {
                 $q->where(function ($sub) {
-                    $sub->where('title', 'ilike', '%'.$this->search.'%')
-                        ->orWhere('description', 'ilike', '%'.$this->search.'%');
+                    $this->whereCaseInsensitive($sub, 'title', '%'.$this->search.'%')
+                        ->orWhereRaw('LOWER(description) LIKE LOWER(?)', ['%'.$this->search.'%']);
                 });
             })
             ->orderByDesc('year')

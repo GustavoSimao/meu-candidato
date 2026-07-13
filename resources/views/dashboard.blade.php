@@ -62,9 +62,11 @@
             </div>
             <div class="bg-zinc-50 rounded-xl p-4 text-center">
                 <p class="text-2xl font-bold text-zinc-900">
-                    {{ number_format(\MeuCandidato\Candidate\Models\Politician::count(), 0, ',', '.') }}
+                    {{ number_format(\MeuCandidato\Candidate\Models\Politician::whereHas('mandates', function ($q) {
+                        $q->whereNull('ended_at')->orWhere('ended_at', '>=', now());
+                    })->count(), 0, ',', '.') }}
                 </p>
-                <p class="text-xs text-zinc-500 mt-1">Políticos no total</p>
+                <p class="text-xs text-zinc-500 mt-1">Políticos em exercício</p>
             </div>
         </div>
     </div>

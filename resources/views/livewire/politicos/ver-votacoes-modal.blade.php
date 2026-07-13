@@ -21,9 +21,11 @@
                         <div class="space-y-2">
                             @foreach ($votes as $vote)
                                 @php
-                                    $title = $vote->bill?->title ?? $vote->votingSession?->description ?? '—';
+                                    $rawTitle = $vote->bill?->title ?? $vote->votingSession?->description ?? '—';
+                                    $title = preg_replace('/\s*Sim:\s*\?.*$/u', '', $rawTitle);
                                     $externalId = $vote->votingSession?->external_id ?? '';
-                                    $camaraUrl = $externalId ? "https://www.camara.leg.br/plenario/votacao/{$externalId}" : '#';
+                                    $votacaoId = explode('-', $externalId)[0];
+                                    $camaraUrl = $votacaoId ? "https://www.camara.leg.br/plenario/votacao/{$votacaoId}" : '#';
                                 @endphp
                                 <a href="{{ $camaraUrl }}" target="_blank" rel="noopener" class="flex items-center gap-3 bg-white border border-zinc-200 rounded-lg px-4 py-3 hover:bg-zinc-50 transition">
                                     <div class="w-2 h-2 rounded-full flex-shrink-0

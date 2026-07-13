@@ -14,13 +14,13 @@ class TseApiClientTest extends TestCase
         $this->assertInstanceOf(TseApiClient::class, $client);
     }
 
-    public function test_extract_and_find_receitas_csv_returns_null_for_invalid_zip(): void
+    public function test_extract_receitas_csvs_returns_empty_for_invalid_zip(): void
     {
         $client = new TseApiClient;
 
-        $result = $client->extractAndFindReceitasCsv('/nonexistent/file.zip');
+        $result = $client->extractReceitasCsvs('/nonexistent/file.zip');
 
-        $this->assertNull($result);
+        $this->assertEmpty($result);
     }
 
     public function test_stream_receitas_csv_returns_zero_for_nonexistent_file(): void

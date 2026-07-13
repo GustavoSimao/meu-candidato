@@ -21,6 +21,7 @@ class IngestionJob extends Model
     protected $casts = [
         'started_at' => 'datetime',
         'finished_at' => 'datetime',
+        'records_count' => 'integer',
     ];
 
     public function rawDataRecords()

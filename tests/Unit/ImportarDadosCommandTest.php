@@ -27,6 +27,10 @@ class ImportarDadosCommandTest extends TestCase
 
     public function test_financiamento_campanha_subcommand_shows_error_on_download_failure(): void
     {
+        $mockTse = \Mockery::mock(TseApiClient::class);
+        $mockTse->shouldReceive('downloadCandidatosCsv')->andReturnNull();
+        $this->app->instance(TseApiClient::class, $mockTse);
+
         $this->artisan('importar-dados', ['subcomando' => 'financiamento-campanha', '--ano-fim' => '2099'])
             ->assertExitCode(1);
     }
@@ -56,13 +60,17 @@ class ImportarDadosCommandTest extends TestCase
 
         $mockTse = \Mockery::mock(TseApiClient::class);
         $mockTse->shouldReceive('downloadCandidatosCsv')->andReturn($tmpDir.'/fake.zip');
-        $mockTse->shouldReceive('extractAndFindReceitasCsv')->andReturn($csvPath);
+        $mockTse->shouldReceive('extractReceitasCsvs')->andReturn([$csvPath]);
         $mockTse->shouldReceive('streamReceitasCsv')->once()->andReturnUsing(function ($path, $callback) {
             $handle = fopen($path, 'r');
-            fgetcsv($handle, 0, ';');
+            $headerLine = fgets($handle);
+            $header = str_getcsv(trim($headerLine), ';');
             $count = 0;
-            while (($row = fgetcsv($handle, 0, ';')) !== false) {
-                $data = array_combine(['SQ_CANDIDATO', 'NR_CANDIDATO', 'NM_CANDIDATO', 'SG_PARTIDO', 'DS_CARGO', 'VR_RECEITA', 'VR_DESPESA'], $row);
+            while (($row = str_getcsv(fgets($handle), ';')) !== false) {
+                if (count($row) !== count($header)) {
+                    continue;
+                }
+                $data = array_combine($header, $row);
                 $callback($data);
                 $count++;
             }
@@ -70,7 +78,6 @@ class ImportarDadosCommandTest extends TestCase
 
             return $count;
         });
-        $mockTse->shouldReceive('cleanup')->once();
 
         $this->app->instance(TseApiClient::class, $mockTse);
 
@@ -82,13 +89,6 @@ class ImportarDadosCommandTest extends TestCase
             'election_year' => 2022,
             'type' => 'receita',
             'value' => 150000.00,
-        ]);
-
-        $this->assertDatabaseHas('campaign_financings', [
-            'politician_id' => $politician->id,
-            'election_year' => 2022,
-            'type' => 'despesa',
-            'value' => 95000.00,
         ]);
     }
 

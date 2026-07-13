@@ -29,4 +29,9 @@ class VotingSession extends Model
     {
         return $this->hasMany(Vote::class);
     }
+
+    public function partyOrientations()
+    {
+        return $this->hasMany(PartyOrientation::class);
+    }
 }

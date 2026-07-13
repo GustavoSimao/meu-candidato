@@ -35,7 +35,8 @@ class ImportarDadosCommand extends Command
                             {subcomando? : Subcomando a executar}
                             {--ano-inicio=2001 : Ano inicial para dados legislativos}
                             {--ano-fim= : Ano final (padrão: ano atual)}
-                            {--mes= : Mês para despesas-mes (1-12, obrigatório)}';
+                            {--mes= : Mês para despesas-mes (1-12, obrigatório)}
+                            {--limite= : Limita processamento a N registros (para testes)}';
 
     protected $description = 'Importa dados reais de APIs governamentais (Câmara, Senado, TSE)';
 
@@ -103,6 +104,18 @@ class ImportarDadosCommand extends Command
         usleep(self::RATE_LIMIT_MS * 1000);
     }
 
+    private function getLimite(): ?int
+    {
+        $limite = $this->option('limite');
+
+        return $limite ? (int) $limite : null;
+    }
+
+    private function shouldStop(int $count, ?int $limite): bool
+    {
+        return $limite !== null && $count >= $limite;
+    }
+
     public function handle(): int
     {
         $subcomando = $this->argument('subcomando') ?? 'todos';
@@ -139,6 +152,7 @@ class ImportarDadosCommand extends Command
             'discursos-senado' => $this->importarDiscursosSenado(),
             'relatorias-senado' => $this->importarRelatoriasSenado(),
             'liderancas-senado' => $this->importarLiderancasSenado(),
+            'vincular-bills-autores' => $this->vincularBillsAutores(),
             'todos' => $this->importarTodos($anoInicio, $anoFim),
             default => $this->errorSubcomando($subcomando),
         };
@@ -153,6 +167,7 @@ class ImportarDadosCommand extends Command
         $this->line('  Senado: senador-votos, senador-autorias, comissoes-senado, discursos-senado, relatorias-senado, liderancas-senado');
         $this->line('  Câmara extras: discursos-camara, eventos-camara, frentes-camara, orgaos-camara');
         $this->line('  Enriquecimento: orientacoes-votacao, temas-proposicoes, tramitacao-proposicoes, autores-proposicoes, blocos');
+        $this->line('  Vínculos: vincular-bills-autores');
         $this->line('  Geral: todos');
 
         return self::FAILURE;
@@ -285,16 +300,7 @@ class ImportarDadosCommand extends Command
     {
         $sigla = $sigla ?? 'S/';
 
-        $party = Party::where('acronym', $sigla)->first();
-
-        if (! $party) {
-            $party = Party::create([
-                'acronym' => $sigla,
-                'name' => $sigla,
-            ]);
-        }
-
-        return $party;
+        return Party::firstOrCreate(['acronym' => $sigla], ['name' => $sigla]);
     }
 
     private function importarSenadores(): int
@@ -682,15 +688,18 @@ class ImportarDadosCommand extends Command
 
             for ($ano = $anoInicio; $ano <= $anoFim; $ano++) {
                 $this->info("  Baixando dados de {$ano}...");
-                $json = $this->camara->downloadArquivoJson('despesas', $ano);
+                $jsonPath = $this->camara->downloadArquivoJsonToDisk('despesas', $ano);
 
-                if (! $json) {
+                if (! $jsonPath || ! file_exists($jsonPath)) {
                     $this->warn("  Dados de {$ano} não disponíveis.");
 
                     continue;
                 }
 
+                $json = file_get_contents($jsonPath);
+                @unlink($jsonPath);
                 $data = json_decode($json, true);
+                unset($json);
 
                 if (! is_array($data)) {
                     continue;
@@ -1037,7 +1046,7 @@ class ImportarDadosCommand extends Command
                     $batchCount++;
 
                     if ($batchCount >= 500) {
-                        DB::table('expenses')->insert($batch);
+                        DB::table('expenses')->insertOrIgnore($batch);
                         $count += count($batch);
                         $batch = [];
                         $batchCount = 0;
@@ -1045,7 +1054,7 @@ class ImportarDadosCommand extends Command
                 });
 
                 if ($batchCount > 0) {
-                    DB::table('expenses')->insert($batch);
+                    DB::table('expenses')->insertOrIgnore($batch);
                     $count += count($batch);
                 }
 
@@ -1116,81 +1125,72 @@ class ImportarDadosCommand extends Command
                 return self::FAILURE;
             }
 
-            $this->info('  Extraindo CSV...');
-            $csvPath = $this->tse->extractAndFindReceitasCsv($zipPath);
+            $this->info('  Extraindo CSVs...');
+            $csvPaths = $this->tse->extractReceitasCsvs($zipPath);
 
-            if (! $csvPath) {
-                $this->error('Falha ao extrair CSV do ZIP.');
+            if (empty($csvPaths)) {
+                $this->error('Falha ao extrair CSVs do ZIP.');
 
                 return self::FAILURE;
             }
 
-            $this->info('  Processando receitas de campanha...');
+            $this->info('  '.count($csvPaths).' CSVs de receitas encontrados.');
 
             $politiciansByName = Politician::select('id', 'name')
                 ->pluck('name', 'id')
                 ->mapWithKeys(fn ($name, $id) => [mb_strtolower($name) => $id]);
 
-            $partidosByAcronym = Party::pluck('id', 'acronym');
-
+            $totals = [];
             $count = 0;
+
+            foreach ($csvPaths as $csvPath) {
+                $basename = basename($csvPath);
+                $this->info("  Processando {$basename}...");
+
+                $this->tse->streamReceitasCsv($csvPath, function (array $data) use (&$count, &$totals, $politiciansByName) {
+                    $count++;
+
+                    $nome = mb_strtolower(trim($data['NM_CANDIDATO'] ?? $data['nome_candidato'] ?? ''));
+
+                    if (! $nome) {
+                        return;
+                    }
+
+                    $politicianId = $politiciansByName->get($nome);
+
+                    if (! $politicianId) {
+                        return;
+                    }
+
+                    $receitaTotal = (float) ($data['VR_RECEITA'] ?? $data['valor_receita'] ?? 0);
+
+                    if ($receitaTotal > 0) {
+                        $totals[$politicianId] = ($totals[$politicianId] ?? 0) + $receitaTotal;
+                    }
+
+                    if ($count % 50000 === 0) {
+                        $this->info("    Processados {$count} registros...");
+                    }
+                });
+            }
+
+            $this->info('  Salvando financiamentos...');
             $matched = 0;
 
-            $this->tse->streamReceitasCsv($csvPath, function (array $data) use (&$count, &$matched, $politiciansByName, $anoEleitoral) {
-                $count++;
-
-                $nome = mb_strtolower(trim($data['NM_CANDIDATO'] ?? $data['nome_candidato'] ?? ''));
-                $siglaPartido = trim($data['SG_PARTIDO'] ?? $data['sigla_partido'] ?? '');
-
-                if (! $nome) {
-                    return;
-                }
-
-                $politicianId = $politiciansByName->get($nome);
-
-                if (! $politicianId) {
-                    return;
-                }
-
-                $receitaTotal = (float) ($data['VR_RECEITA'] ?? $data['valor_receita'] ?? 0);
-                $despesaTotal = (float) ($data['VR_DESPESA'] ?? $data['valor_despesa'] ?? 0);
-
-                if ($receitaTotal > 0) {
-                    CampaignFinancing::updateOrCreate(
-                        [
-                            'politician_id' => $politicianId,
-                            'election_year' => $anoEleitoral,
-                            'source' => 'TSE - Receita',
-                            'type' => 'receita',
-                        ],
-                        [
-                            'value' => $receitaTotal,
-                        ]
-                    );
-                    $matched++;
-                }
-
-                if ($despesaTotal > 0) {
-                    CampaignFinancing::updateOrCreate(
-                        [
-                            'politician_id' => $politicianId,
-                            'election_year' => $anoEleitoral,
-                            'source' => 'TSE - Despesa',
-                            'type' => 'despesa',
-                        ],
-                        [
-                            'value' => $despesaTotal,
-                        ]
-                    );
-                    $matched++;
-                }
-
-                if ($count % 10000 === 0) {
-                    $this->info("    Processados {$count} registros ({$matched} correspondências)...");
-                }
-            });
-
-            $this->tse->cleanup($zipPath, $csvPath);
+            foreach ($totals as $politicianId => $total) {
+                CampaignFinancing::updateOrCreate(
+                    [
+                        'politician_id' => $politicianId,
+                        'election_year' => $anoEleitoral,
+                        'source' => 'TSE - Receita',
+                        'type' => 'receita',
+                    ],
+                    [
+                        'value' => $total,
+                    ]
+                );
+                $matched++;
+            }
 
             $this->finalizarJob($job, $count);
             $this->info("Processados {$count} registros, {$matched} financiamentos importados.");
@@ -1335,14 +1335,20 @@ class ImportarDadosCommand extends Command
 
     private function importarDiscursosCamara(): int
     {
-        $this->info('Importando discursos de deputados da Câmara...');
+        $limite = $this->getLimite();
+        $this->info('Importando discursos de deputados da Câmara'.($limite ? " (limite: {$limite})" : '').'...');
 
         $job = $this->criarJob('discursos_camara');
 
         try {
-            $deputados = Politician::whereNotNull('external_id')
-                ->where('position', 'Deputado Federal')
-                ->pluck('external_id', 'id');
+            $query = Politician::whereNotNull('external_id')
+                ->where('position', 'Deputado Federal');
+
+            if ($limite) {
+                $query->whereDoesntHave('speeches');
+            }
+
+            $deputados = $query->pluck('external_id', 'id');
 
             if ($deputados->isEmpty()) {
                 $this->warn('Nenhum deputado encontrado.');
@@ -1380,7 +1386,15 @@ class ImportarDadosCommand extends Command
                     $count++;
                 }
 
+                if ($count % 50 === 0 && $count > 0) {
+                    $this->info("  {$count} discursos importados...");
+                }
+
                 $this->rateLimit();
+
+                if ($this->shouldStop($count, $limite)) {
+                    break;
+                }
             }
 
             $this->finalizarJob($job, $count);
@@ -1452,14 +1466,20 @@ class ImportarDadosCommand extends Command
 
     private function importarFrentesCamara(): int
     {
-        $this->info('Importando frentes parlamentares da Câmara...');
+        $limite = $this->getLimite();
+        $this->info('Importando frentes parlamentares da Câmara'.($limite ? " (limite: {$limite})" : '').'...');
 
         $job = $this->criarJob('frentes_camara');
 
         try {
-            $deputados = Politician::whereNotNull('external_id')
-                ->where('position', 'Deputado Federal')
-                ->pluck('external_id', 'id');
+            $query = Politician::whereNotNull('external_id')
+                ->where('position', 'Deputado Federal');
+
+            if ($limite) {
+                $query->whereDoesntHave('parliamentaryFronts');
+            }
+
+            $deputados = $query->pluck('external_id', 'id');
 
             if ($deputados->isEmpty()) {
                 $this->warn('Nenhum deputado encontrado.');
@@ -1487,7 +1507,15 @@ class ImportarDadosCommand extends Command
                     $count++;
                 }
 
+                if ($count % 50 === 0 && $count > 0) {
+                    $this->info("  {$count} frentes importadas...");
+                }
+
                 $this->rateLimit();
+
+                if ($this->shouldStop($count, $limite)) {
+                    break;
+                }
             }
 
             $this->finalizarJob($job, $count);
@@ -1558,14 +1586,20 @@ class ImportarDadosCommand extends Command
 
     private function importarOrientacoesVotacao(): int
     {
-        $this->info('Importando orientações partidárias das votações...');
+        $limite = $this->getLimite();
+        $this->info('Importando orientações partidárias das votações'.($limite ? " (limite: {$limite})" : '').'...');
 
         $job = $this->criarJob('orientacoes_votacao');
 
         try {
-            $sessions = VotingSession::whereNotNull('external_id')
-                ->where('external_id', 'NOT LIKE', 'senado_%')
-                ->pluck('external_id', 'id');
+            $query = VotingSession::whereNotNull('external_id')
+                ->where('external_id', 'NOT LIKE', 'senado_%');
+
+            if ($limite) {
+                $query->whereDoesntHave('partyOrientations');
+            }
+
+            $sessions = $query->pluck('external_id', 'id');
 
             if ($sessions->isEmpty()) {
                 $this->warn('Nenhuma sessão de votação encontrada.');
@@ -1592,7 +1626,15 @@ class ImportarDadosCommand extends Command
                     $count++;
                 }
 
+                if ($count % 100 === 0 && $count > 0) {
+                    $this->info("  {$count} orientações importadas...");
+                }
+
                 $this->rateLimit();
+
+                if ($this->shouldStop($count, $limite)) {
+                    break;
+                }
             }
 
             $this->finalizarJob($job, $count);
@@ -1608,14 +1650,20 @@ class ImportarDadosCommand extends Command
 
     private function importarTemasProposicoes(): int
     {
-        $this->info('Importando temas das proposições...');
+        $limite = $this->getLimite();
+        $this->info('Importando temas das proposições'.($limite ? " (limite: {$limite})" : '').'...');
 
         $job = $this->criarJob('temas_proposicoes');
 
         try {
-            $bills = Bill::whereNotNull('external_id')
-                ->where('external_id', 'NOT LIKE', 'senado_%')
-                ->pluck('external_id', 'id');
+            $query = Bill::whereNotNull('external_id')
+                ->where('external_id', 'NOT LIKE', 'senado_%');
+
+            if ($limite) {
+                $query->whereDoesntHave('themes');
+            }
+
+            $bills = $query->pluck('external_id', 'id');
 
             if ($bills->isEmpty()) {
                 $this->warn('Nenhuma proposição encontrada.');
@@ -1642,7 +1690,15 @@ class ImportarDadosCommand extends Command
                     $count++;
                 }
 
+                if ($count % 100 === 0 && $count > 0) {
+                    $this->info("  {$count} temas importados...");
+                }
+
                 $this->rateLimit();
+
+                if ($this->shouldStop($count, $limite)) {
+                    break;
+                }
             }
 
             $this->finalizarJob($job, $count);
@@ -1658,14 +1714,20 @@ class ImportarDadosCommand extends Command
 
     private function importarTramitacaoProposicoes(): int
     {
-        $this->info('Importando tramitação das proposições...');
+        $limite = $this->getLimite();
+        $this->info('Importando tramitação das proposições'.($limite ? " (limite: {$limite})" : '').'...');
 
         $job = $this->criarJob('tramitacao_proposicoes');
 
         try {
-            $bills = Bill::whereNotNull('external_id')
-                ->where('external_id', 'NOT LIKE', 'senado_%')
-                ->pluck('external_id', 'id');
+            $query = Bill::whereNotNull('external_id')
+                ->where('external_id', 'NOT LIKE', 'senado_%');
+
+            if ($limite) {
+                $query->whereDoesntHave('progress');
+            }
+
+            $bills = $query->pluck('external_id', 'id');
 
             if ($bills->isEmpty()) {
                 $this->warn('Nenhuma proposição encontrada.');
@@ -1679,18 +1741,27 @@ class ImportarDadosCommand extends Command
                 $tramitacoes = $this->camara->getTramitacaoProposicao((int) $externalId);
 
                 foreach ($tramitacoes as $tramitacao) {
-                    BillProgress::create([
-                        'bill_id' => $billId,
-                        'external_id' => (string) ($tramitacao['sequencia'] ?? ''),
-                        'description' => mb_substr($tramitacao['descricaoSituacao'] ?? $tramitacao['descricaoTramitacao'] ?? '', 0, 500),
-                        'date' => $tramitacao['dataHora'] ?? null,
-                        'sequence_number' => $tramitacao['sequencia'] ?? null,
-                    ]);
+                    BillProgress::updateOrCreate(
+                        ['bill_id' => $billId, 'sequence_number' => $tramitacao['sequencia'] ?? null],
+                        [
+                            'external_id' => (string) ($tramitacao['sequencia'] ?? ''),
+                            'description' => mb_substr($tramitacao['descricaoSituacao'] ?? $tramitacao['descricaoTramitacao'] ?? '', 0, 500),
+                            'date' => $tramitacao['dataHora'] ?? null,
+                        ]
+                    );
 
                     $count++;
                 }
 
+                if ($count % 100 === 0 && $count > 0) {
+                    $this->info("  {$count} registros de tramitação importados...");
+                }
+
                 $this->rateLimit();
+
+                if ($this->shouldStop($count, $limite)) {
+                    break;
+                }
             }
 
             $this->finalizarJob($job, $count);
@@ -1706,14 +1777,20 @@ class ImportarDadosCommand extends Command
 
     private function importarAutoresProposicoes(): int
     {
-        $this->info('Importando co-autores das proposições...');
+        $limite = $this->getLimite();
+        $this->info('Importando co-autores das proposições'.($limite ? " (limite: {$limite})" : '').'...');
 
         $job = $this->criarJob('autores_proposicoes');
 
         try {
-            $bills = Bill::whereNotNull('external_id')
-                ->where('external_id', 'NOT LIKE', 'senado_%')
-                ->pluck('external_id', 'id');
+            $query = Bill::whereNotNull('external_id')
+                ->where('external_id', 'NOT LIKE', 'senado_%');
+
+            if ($limite) {
+                $query->whereDoesntHave('coauthors');
+            }
+
+            $bills = $query->pluck('external_id', 'id');
 
             if ($bills->isEmpty()) {
                 $this->warn('Nenhuma proposição encontrada.');
@@ -1727,34 +1804,52 @@ class ImportarDadosCommand extends Command
                 $autores = $this->camara->getAutoresProposicao((int) $externalId);
 
                 foreach ($autores as $autor) {
-                    $idAutor = $autor['idDeputadoAutor'] ?? $autor['id'] ?? null;
-                    $nomeAutor = $autor['nome'] ?? $autor['nomeCivil'] ?? '';
+                    $uri = $autor['uri'] ?? '';
+                    $nome = $autor['nome'] ?? $autor['nomeCivil'] ?? '';
+                    $proponente = $autor['proponente'] ?? 0;
 
-                    if (! $nomeAutor) {
+                    if (! $nome) {
                         continue;
                     }
 
+                    $deputadoId = null;
+                    if (preg_match('#/deputados/(\d+)#', $uri, $matches)) {
+                        $deputadoId = $matches[1];
+                    }
+
                     $politicianId = null;
-                    if ($idAutor) {
-                        $politician = Politician::where('external_id', (string) $idAutor)->first();
+                    if ($deputadoId) {
+                        $politician = Politician::where('external_id', $deputadoId)->first();
                         $politicianId = $politician?->id;
                     }
 
                     BillCoauthor::updateOrCreate(
                         [
                             'bill_id' => $billId,
-                            'author_external_id' => (string) ($idAutor ?? ''),
+                            'author_external_id' => $deputadoId ?? '',
                         ],
                         [
                             'politician_id' => $politicianId,
-                            'author_name' => mb_substr($nomeAutor, 0, 300),
+                            'author_name' => mb_substr($nome, 0, 300),
                         ]
                     );
+
+                    if ($proponente && $politicianId) {
+                        Bill::where('id', $billId)->update(['author_id' => $politicianId]);
+                    }
 
                     $count++;
                 }
 
+                if ($count % 100 === 0) {
+                    $this->info("  {$count} co-autores importados...");
+                }
+
                 $this->rateLimit();
+
+                if ($this->shouldStop($count, $limite)) {
+                    break;
+                }
             }
 
             $this->finalizarJob($job, $count);
@@ -2083,5 +2178,85 @@ class ImportarDadosCommand extends Command
         ]);
 
         $this->error("Erro: {$e->getMessage()}");
+    }
+
+    private function vincularBillsAutores(): int
+    {
+        $limite = $this->getLimite();
+        $this->info('Vinculando autores principais aos bills...'.($limite ? " (limite: {$limite})" : ''));
+
+        $job = $this->criarJob('vincular_bills_autores');
+
+        try {
+            $bills = Bill::whereNull('author_id')
+                ->whereNotNull('external_id')
+                ->where('external_id', 'NOT LIKE', 'senado_%')
+                ->pluck('id', 'external_id');
+
+            if ($bills->isEmpty()) {
+                $this->warn('Todos os bills já possuem author_id.');
+
+                return self::FAILURE;
+            }
+
+            $this->info('  '.count($bills).' bills sem author_id. Buscando autores na API...');
+
+            $count = 0;
+            $linked = 0;
+
+            foreach ($bills as $billId => $externalId) {
+                $autores = $this->camara->getAutoresProposicao((int) $externalId);
+
+                if (empty($autores)) {
+                    $this->rateLimit();
+                    if ($this->shouldStop($count, $limite)) {
+                        break;
+                    }
+
+                    continue;
+                }
+
+                $author = $autores[0];
+                $uri = $author['uri'] ?? '';
+                $nome = $author['nome'] ?? '';
+
+                $deputadoId = null;
+                if (preg_match('#/deputados/(\d+)#', $uri, $matches)) {
+                    $deputadoId = $matches[1];
+                }
+
+                $politicianId = null;
+                if ($deputadoId) {
+                    $politician = Politician::where('external_id', $deputadoId)->first();
+                    $politicianId = $politician?->id;
+                }
+
+                if ($politicianId) {
+                    Bill::where('id', $billId)->update(['author_id' => $politicianId]);
+                    $linked++;
+                }
+
+                $count++;
+
+                if ($count % 50 === 0) {
+                    $this->info("  Processados {$count}/".count($bills)." bills (vinculados: {$linked})...");
+                }
+
+                $this->rateLimit();
+
+                if ($this->shouldStop($count, $limite)) {
+                    break;
+                }
+            }
+
+            $this->finalizarJob($job, $count);
+            $this->info("Processados {$count} bills. Vinculados {$linked} autores.");
+
+            return self::SUCCESS;
+        } catch (\Throwable $e) {
+            $this->falharJob($job, $e);
+
+            return self::FAILURE;
+        }
     }
 }

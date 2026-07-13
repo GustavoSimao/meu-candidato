@@ -2,6 +2,7 @@
 
 namespace App\Livewire\Politicos;
 
+use App\Support\CaseInsensitiveSearch;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Livewire\Attributes\Computed;
 use Livewire\Attributes\Title;
@@ -14,6 +15,7 @@ use MeuCandidato\Party\Models\Party;
 #[Title('Políticos')]
 class Index extends Component
 {
+    use CaseInsensitiveSearch;
     use WithPagination;
 
     public string $search = '';
@@ -60,11 +62,14 @@ class Index extends Component
 
     public function filtered(): LengthAwarePaginator
     {
-        $query = Politician::with(['party', 'mandates', 'bills', 'latestAddress'])
-            ->whereNotNull('external_id');
+        $query = Politician::with(['party', 'mandates', 'latestAddress', 'bills'])
+            ->whereNotNull('external_id')
+            ->whereHas('mandates', function ($q) {
+                $q->whereNull('ended_at')->orWhere('ended_at', '>=', now());
+            });
 
         if ($this->search !== '') {
-            $query->where('name', 'ilike', "%{$this->search}%");
+            $query = $this->whereCaseInsensitive($query, 'name', "%{$this->search}%");
         }
 
         if ($this->selectedPositions !== []) {

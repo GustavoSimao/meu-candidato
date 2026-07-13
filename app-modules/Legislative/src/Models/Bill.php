@@ -28,4 +28,19 @@ class Bill extends Model
     {
         return $this->hasMany(VotingSession::class);
     }
+
+    public function themes()
+    {
+        return $this->hasMany(BillTheme::class);
+    }
+
+    public function progress()
+    {
+        return $this->hasMany(BillProgress::class);
+    }
+
+    public function coauthors()
+    {
+        return $this->hasMany(BillCoauthor::class);
+    }
 }

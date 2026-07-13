@@ -9,6 +9,7 @@ use Livewire\Attributes\Computed;
 use Livewire\Component;
 use MeuCandidato\Candidate\Models\Politician;
 use MeuCandidato\Identity\Models\Follow;
+use MeuCandidato\Legislative\Models\Bill;
 
 class Show extends Component
 {
@@ -79,15 +80,26 @@ class Show extends Component
             'rapporteurships',
             'billCoauthors',
             'parliamentaryBlocs',
-        ])->withCount(['bills', 'expenses', 'votes', 'speeches', 'events'])->find($this->id);
+        ])->withCount(['expenses', 'votes', 'speeches', 'events'])->find($this->id);
 
         if (! $p) {
             return null;
         }
 
-        $bills = $p->bills()->orderByDesc('year')->limit(3)->get([
-            'id', 'external_id', 'title', 'description', 'status', 'year',
-        ]);
+        $billsCount = Bill::where(fn ($q) => $q->where('author_id', $p->id)
+            ->orWhereHas('coauthors', fn ($cq) => $cq->where('politician_id', $p->id)))
+            ->count();
+
+        $bills = Bill::where(fn ($q) => $q->where('author_id', $p->id)
+            ->orWhereHas('coauthors', fn ($cq) => $cq->where('politician_id', $p->id)))
+            ->with(['themes', 'progress' => function ($q) {
+                $q->orderByDesc('date')->limit(1);
+            }])
+            ->orderByDesc('year')
+            ->limit(3)
+            ->get([
+                'id', 'external_id', 'title', 'description', 'status', 'year',
+            ]);
 
         $votes = $p->votes()
             ->join('voting_sessions', 'votes.voting_session_id', '=', 'voting_sessions.id')
@@ -136,7 +148,7 @@ class Show extends Component
             'birth_date' => $p->birth_date?->format('d/m/Y'),
             'declared_profession' => $p->declared_profession,
             'defends' => $p->defends,
-            'bills_count' => $p->bills_count,
+            'bills_count' => $billsCount,
             'expenses_count' => $p->expenses_count,
             'votes_count' => $p->votes_count,
             'mandates' => $p->mandates->sortByDesc('started_at')->map(fn ($m) => [
@@ -152,6 +164,9 @@ class Show extends Component
                 'description' => $b->description,
                 'status' => $b->status,
                 'year' => $b->year,
+                'themes' => $b->themes->pluck('theme_name')->filter()->values()->all(),
+                'latest_progress' => $b->progress->first()?->description,
+                'latest_progress_date' => $b->progress->first()?->date?->format('d/m/Y'),
             ])->values()->all(),
             'votes' => $votes->map(fn ($v) => [
                 'vote' => $v->vote,

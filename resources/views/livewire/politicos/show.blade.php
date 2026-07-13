@@ -1,7 +1,15 @@
 <div>
-@livewire('politicos.ver-votacoes-modal', ['politicianId' => $this->politician->id ?? ''])
-@livewire('politicos.ver-proposicoes-modal', ['politicianId' => $this->politician->id ?? ''])
-@livewire('politicos.ver-despesas-modal', ['politicianId' => $this->politician->id ?? ''])
+@if ($this->politician)
+@livewire('politicos.ver-votacoes-modal', ['politicianId' => $this->politician['id']])
+@livewire('politicos.ver-proposicoes-modal', ['politicianId' => $this->politician['id']])
+@livewire('politicos.ver-despesas-modal', ['politicianId' => $this->politician['id']])
+@livewire('politicos.ver-comissoes-modal', ['politicianId' => $this->politician['id']])
+@livewire('politicos.ver-frentes-modal', ['politicianId' => $this->politician['id']])
+@livewire('politicos.ver-discursos-modal', ['politicianId' => $this->politician['id']])
+@livewire('politicos.ver-liderancas-modal', ['politicianId' => $this->politician['id']])
+@livewire('politicos.ver-relatorias-modal', ['politicianId' => $this->politician['id']])
+@livewire('politicos.ver-coautores-modal', ['politicianId' => $this->politician['id']])
+@endif
 
 <section class="w-full max-w-4xl mx-auto py-8 px-4">
     @if ($this->politician === null)
@@ -95,7 +103,7 @@
         {{-- O que defende --}}
         @if ($p['defends'])
             <div class="mb-8">
-                <flux:heading size="lg" level="2">O que defende</flux:heading>
+                <flux:heading size="lg" level="2" style="color: #18181b !important">O que defende</flux:heading>
                 <p class="text-sm text-zinc-700 mt-2 leading-relaxed">{{ $p['defends'] }}</p>
             </div>
         @endif
@@ -103,7 +111,7 @@
         {{-- Mandatos --}}
         @if (count($p['mandates']) > 0)
             <div class="mb-8">
-                <flux:heading size="lg" level="2">Mandatos</flux:heading>
+                <flux:heading size="lg" level="2" style="color: #18181b !important">Mandatos</flux:heading>
                 <div class="mt-3 space-y-2">
                     @foreach ($p['mandates'] as $mandate)
                         <div class="flex items-center gap-3 bg-white border border-zinc-200 rounded-lg px-4 py-3">
@@ -128,7 +136,7 @@
         {{-- Badges --}}
         @if (count($p['badges']) > 0)
             <div class="mb-8">
-                <flux:heading size="lg" level="2">Distintivos</flux:heading>
+                <flux:heading size="lg" level="2" style="color: #18181b !important">Distintivos</flux:heading>
                 <div class="mt-3 flex flex-wrap gap-2">
                     @foreach ($p['badges'] as $badge)
                         <div
@@ -146,7 +154,7 @@
         @if (count($p['bills']) > 0)
             <div class="mb-8">
                 <div class="flex items-center justify-between">
-                    <flux:heading size="lg" level="2">Proposições</flux:heading>
+                    <flux:heading size="lg" level="2" style="color: #18181b !important">Proposições</flux:heading>
                     @if ($p['bills_count'] > 3)
                         <button wire:click="$dispatch('openProposicoesModal')" class="text-sm text-blue-600 hover:text-blue-800 font-medium">
                             Ver todas →
@@ -161,6 +169,20 @@
                                     <p class="text-sm text-zinc-900 font-medium line-clamp-2">{{ $bill['title'] }}</p>
                                     @if ($bill['description'])
                                         <p class="text-xs text-zinc-500 mt-1 line-clamp-2">{{ $bill['description'] }}</p>
+                                    @endif
+                                    @if (!empty($bill['themes']))
+                                        <div class="flex flex-wrap gap-1 mt-1.5">
+                                            @foreach ($bill['themes'] as $theme)
+                                                <span class="text-[10px] font-medium px-1.5 py-0.5 rounded bg-sky-50 text-sky-700 border border-sky-200">{{ $theme }}</span>
+                                            @endforeach
+                                        </div>
+                                    @endif
+                                    @if ($bill['latest_progress'])
+                                        <p class="text-[11px] text-zinc-400 mt-1.5 flex items-center gap-1">
+                                            <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6"/></svg>
+                                            {{ $bill['latest_progress'] }}
+                                            @if ($bill['latest_progress_date']) · {{ $bill['latest_progress_date'] }} @endif
+                                        </p>
                                     @endif
                                 </div>
                                 <div class="flex flex-col items-end gap-1 flex-shrink-0">
@@ -181,7 +203,7 @@
         @if (count($p['votes']) > 0)
             <div class="mb-8">
                 <div class="flex items-center justify-between">
-                    <flux:heading size="lg" level="2">Votos</flux:heading>
+                    <flux:heading size="lg" level="2" style="color: #18181b !important">Votos</flux:heading>
                     @if ($p['votes_count'] > 3)
                         <button wire:click="$dispatch('openVotacoesModal')" class="text-sm text-blue-600 hover:text-blue-800 font-medium">
                             Ver todas →
@@ -191,16 +213,21 @@
                 <div class="mt-3 space-y-2">
                     @foreach (array_slice($p['votes'], 0, 3) as $vote)
                         @php
-                            $camaraUrl = ($vote['session_external_id'] ?? null)
-                                ? "https://www.camara.leg.br/plenario/votacao/{$vote['session_external_id']}"
+                            $extId = $vote['session_external_id'] ?? '';
+                            $votacaoId = explode('-', $extId)[0];
+                            $camaraUrl = $votacaoId
+                                ? "https://www.camara.leg.br/plenario/votacao/{$votacaoId}"
                                 : '#';
+                            $voteTitle = $vote['bill_title']
+                                ?? preg_replace('/\s*Sim:\s*\?.*$/u', '', $vote['session_description'] ?? '')
+                                ?? 'Votação';
                         @endphp
                         <a href="{{ $camaraUrl }}" target="_blank" rel="noopener" class="flex items-center gap-3 bg-white border border-zinc-200 rounded-lg px-4 py-3 hover:bg-zinc-50 transition">
                             <div class="w-2 h-2 rounded-full flex-shrink-0
                                 {{ $vote['vote'] === 'Sim' ? 'bg-emerald-500' : ($vote['vote'] === 'Não' ? 'bg-red-500' : 'bg-zinc-400') }}">
                             </div>
                             <div class="flex-1 min-w-0">
-                                <p class="text-sm text-zinc-900 line-clamp-1">{{ $vote['bill_title'] }}</p>
+                                <p class="text-sm text-zinc-900 line-clamp-1">{{ $voteTitle }}</p>
                                 <p class="text-xs text-zinc-500">{{ $vote['date'] }}</p>
                             </div>
                             <span class="text-xs font-medium
@@ -217,7 +244,7 @@
         {{-- Despesas --}}
         @if ($p['total_expenses'] > 0)
             <div class="mb-8">
-                <flux:heading size="lg" level="2">Despesas CEAP</flux:heading>
+                <flux:heading size="lg" level="2" style="color: #18181b !important">Despesas CEAP</flux:heading>
 
                 {{-- Total --}}
                 <div class="mt-3 bg-gradient-to-r from-emerald-50 to-teal-50 border border-emerald-200 rounded-lg px-5 py-4">
@@ -285,7 +312,12 @@
         {{-- Comissões e Órgãos --}}
         @if (count($p['committees']) > 0)
             <div class="mb-8">
-                <flux:heading size="lg" level="2">Comissões e Órgãos</flux:heading>
+                <div class="flex items-center justify-between">
+                    <flux:heading size="lg" level="2" style="color: #18181b !important">Comissões e Órgãos</flux:heading>
+                    @if (count($p['committees']) > 5)
+                        <button wire:click="$dispatch('open-comissoes')" class="text-xs font-medium text-blue-600 hover:text-blue-800">Ver todas →</button>
+                    @endif
+                </div>
                 <div class="mt-3 space-y-2">
                     @foreach (array_slice($p['committees'], 0, 5) as $committee)
                         <div class="flex items-center gap-3 bg-white border border-zinc-200 rounded-lg px-4 py-3">
@@ -314,7 +346,10 @@
         {{-- Frentes Parlamentares --}}
         @if (count($p['fronts']) > 0)
             <div class="mb-8">
-                <flux:heading size="lg" level="2">Frentes Parlamentares</flux:heading>
+                <div class="flex items-center justify-between">
+                    <flux:heading size="lg" level="2" style="color: #18181b !important">Frentes Parlamentares</flux:heading>
+                    <button wire:click="$dispatch('open-frentes')" class="text-xs font-medium text-blue-600 hover:text-blue-800">Ver todas →</button>
+                </div>
                 <div class="mt-3 flex flex-wrap gap-2">
                     @foreach ($p['fronts'] as $front)
                         <span class="inline-flex items-center gap-1.5 text-xs font-medium px-2.5 py-1 rounded-full bg-violet-50 text-violet-700 border border-violet-200">
@@ -332,8 +367,13 @@
         @if (count($p['speeches']) > 0)
             <div class="mb-8">
                 <div class="flex items-center justify-between">
-                    <flux:heading size="lg" level="2">Discursos</flux:heading>
-                    <span class="text-xs text-zinc-500">{{ $p['speeches_count'] }} no total</span>
+                    <flux:heading size="lg" level="2" style="color: #18181b !important">Discursos</flux:heading>
+                    <div class="flex items-center gap-3">
+                        <span class="text-xs text-zinc-500">{{ $p['speeches_count'] }} no total</span>
+                        @if ($p['speeches_count'] > 5)
+                            <button wire:click="$dispatch('open-discursos')" class="text-xs font-medium text-blue-600 hover:text-blue-800">Ver todas →</button>
+                        @endif
+                    </div>
                 </div>
                 <div class="mt-3 space-y-2">
                     @foreach ($p['speeches'] as $speech)
@@ -363,7 +403,7 @@
         @if (count($p['events']) > 0)
             <div class="mb-8">
                 <div class="flex items-center justify-between">
-                    <flux:heading size="lg" level="2">Presença em Eventos</flux:heading>
+                    <flux:heading size="lg" level="2" style="color: #18181b !important">Presença em Eventos</flux:heading>
                     <span class="text-xs text-zinc-500">{{ $p['events_count'] }} no total</span>
                 </div>
                 <div class="mt-3 space-y-2">
@@ -387,7 +427,10 @@
         {{-- Lideranças --}}
         @if (count($p['leaderships']) > 0)
             <div class="mb-8">
-                <flux:heading size="lg" level="2">Lideranças</flux:heading>
+                <div class="flex items-center justify-between">
+                    <flux:heading size="lg" level="2" style="color: #18181b !important">Lideranças</flux:heading>
+                    <button wire:click="$dispatch('open-liderancas')" class="text-xs font-medium text-blue-600 hover:text-blue-800">Ver todas →</button>
+                </div>
                 <div class="mt-3 space-y-2">
                     @foreach ($p['leaderships'] as $leadership)
                         <div class="flex items-center gap-3 bg-white border border-zinc-200 rounded-lg px-4 py-3">
@@ -409,7 +452,10 @@
         {{-- Relatorias --}}
         @if (count($p['rapporteurships']) > 0)
             <div class="mb-8">
-                <flux:heading size="lg" level="2">Relatorias</flux:heading>
+                <div class="flex items-center justify-between">
+                    <flux:heading size="lg" level="2" style="color: #18181b !important">Relatorias</flux:heading>
+                    <button wire:click="$dispatch('open-relatorias')" class="text-xs font-medium text-blue-600 hover:text-blue-800">Ver todas →</button>
+                </div>
                 <div class="mt-3 space-y-2">
                     @foreach (array_slice($p['rapporteurships'], 0, 5) as $rapport)
                         <div class="bg-white border border-zinc-200 rounded-lg px-4 py-3">
@@ -436,7 +482,10 @@
         {{-- Co-autores --}}
         @if (count($p['coauthors']) > 0)
             <div class="mb-8">
-                <flux:heading size="lg" level="2">Co-autores de Proposições</flux:heading>
+                <div class="flex items-center justify-between">
+                    <flux:heading size="lg" level="2" style="color: #18181b !important">Co-autores de Proposições</flux:heading>
+                    <button wire:click="$dispatch('open-coautores')" class="text-xs font-medium text-blue-600 hover:text-blue-800">Ver todas →</button>
+                </div>
                 <div class="mt-3 space-y-2">
                     @foreach (array_slice($p['coauthors'], 0, 5) as $coauthor)
                         <div class="flex items-center gap-3 bg-white border border-zinc-200 rounded-lg px-4 py-3">
@@ -457,7 +506,7 @@
         {{-- Blocos Parlamentares --}}
         @if (count($p['blocs']) > 0)
             <div class="mb-8">
-                <flux:heading size="lg" level="2">Blocos Parlamentares</flux:heading>
+                <flux:heading size="lg" level="2" style="color: #18181b !important">Blocos Parlamentares</flux:heading>
                 <div class="mt-3 space-y-2">
                     @foreach ($p['blocs'] as $bloc)
                         <div class="flex items-center gap-3 bg-white border border-zinc-200 rounded-lg px-4 py-3">

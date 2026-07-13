@@ -2,17 +2,20 @@
 
 namespace App\Livewire\Politicos;
 
+use App\Support\CaseInsensitiveSearch;
 use Illuminate\Contracts\View\View;
 use Illuminate\Pagination\LengthAwarePaginator;
+use Livewire\Attributes\On;
 use Livewire\Component;
 use Livewire\WithPagination;
 use MeuCandidato\Legislative\Models\Vote;
 
 class VerVotacoesModal extends Component
 {
+    use CaseInsensitiveSearch;
     use WithPagination;
 
-    public string $politicianId;
+    public ?string $politicianId = null;
 
     public bool $isOpen = false;
 
@@ -23,6 +26,7 @@ class VerVotacoesModal extends Component
         $this->politicianId = $politicianId;
     }
 
+    #[On('openVotacoesModal')]
     public function open(): void
     {
         $this->isOpen = true;
@@ -43,14 +47,14 @@ class VerVotacoesModal extends Component
         }
 
         $votes = Vote::where('politician_id', $this->politicianId)
-            ->join('voting_sessions', 'votes.voting_session_id', '=', 'voting_sessions.id')
-            ->leftJoin('bills', 'voting_sessions.bill_id', '=', 'bills.id')
+            ->with(['votingSession.bill'])
             ->when($this->search, function ($q) {
                 $q->where(function ($sub) {
-                    $sub->where('bills.title', 'ilike', '%'.$this->search.'%')
-                        ->orWhere('voting_sessions.description', 'ilike', '%'.$this->search.'%');
+                    $sub->whereHas('votingSession.bill', fn ($b) => $b->whereRaw('LOWER(title) LIKE LOWER(?)', ['%'.$this->search.'%']))
+                        ->orWhereHas('votingSession', fn ($vs) => $vs->whereRaw('LOWER(description) LIKE LOWER(?)', ['%'.$this->search.'%']));
                 });
             })
+            ->join('voting_sessions', 'votes.voting_session_id', '=', 'voting_sessions.id')
             ->orderByDesc('voting_sessions.date')
             ->paginate(15);
 

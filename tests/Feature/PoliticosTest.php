@@ -26,12 +26,20 @@ class PoliticosTest extends TestCase
     {
         $party = Party::create(['name' => 'Partido Teste', 'acronym' => 'PT']);
 
-        return Politician::create([
+        $politician = Politician::create([
             'name' => 'João da Silva',
             'party_id' => $party->id,
             'position' => 'Deputado Federal',
             'external_id' => $externalId,
         ]);
+
+        Mandate::create([
+            'politician_id' => $politician->id,
+            'position' => 'Deputado Federal',
+            'started_at' => now()->subYear(),
+        ]);
+
+        return $politician;
     }
 
     public function test_guests_can_view_politicos_listing(): void

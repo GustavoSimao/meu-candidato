@@ -78,7 +78,7 @@ class TseApiClient
         return null;
     }
 
-    public function extractAndFindReceitasCsv(string $zipPath): ?string
+    public function extractReceitasCsvs(string $zipPath): array
     {
         $extractDir = dirname($zipPath).'/extracted_'.basename($zipPath, '.zip');
 
@@ -90,15 +90,28 @@ class TseApiClient
         if ($zip->open($zipPath) !== true) {
             Log::error('Falha ao abrir ZIP TSE', ['path' => $zipPath]);
 
-            return null;
+            return [];
         }
 
         $zip->extractTo($extractDir);
         $zip->close();
 
-        $csvFiles = glob($extractDir.'/*receita*.csv') ?: glob($extractDir.'/*.csv');
+        $csvFiles = glob($extractDir.'/receitas_candidatos_*.csv');
 
-        return $csvFiles[0] ?? null;
+        usort($csvFiles, function ($a, $b) {
+            $aBras = str_contains($a, 'BRASIL');
+            $bBras = str_contains($b, 'BRASIL');
+            if ($aBras && ! $bBras) {
+                return -1;
+            }
+            if (! $aBras && $bBras) {
+                return 1;
+            }
+
+            return strcmp($a, $b);
+        });
+
+        return $csvFiles;
     }
 
     public function streamReceitasCsv(string $csvPath, callable $callback): int
@@ -112,17 +125,25 @@ class TseApiClient
             return 0;
         }
 
-        $header = fgetcsv($handle, 0, ';');
-        if ($header === false) {
+        $rawHeader = fgets($handle);
+        if ($rawHeader === false) {
             fclose($handle);
 
             return 0;
         }
 
-        $headerMap = array_flip(array_map('strtolower', array_map('trim', $header)));
+        $detected = mb_detect_encoding($rawHeader, ['UTF-8', 'ISO-8859-1', 'Windows-1252'], true);
+        $encoding = $detected ?: 'ISO-8859-1';
+        $needsConvert = $encoding !== 'UTF-8';
+
+        $headerStr = $needsConvert ? mb_convert_encoding($rawHeader, 'UTF-8', $encoding) : $rawHeader;
+        $header = str_getcsv($headerStr, ';');
         $count = 0;
 
-        while (($row = fgetcsv($handle, 0, ';')) !== false) {
+        while (($rawLine = fgets($handle)) !== false) {
+            $line = $needsConvert ? mb_convert_encoding($rawLine, 'UTF-8', $encoding) : $rawLine;
+            $row = str_getcsv($line, ';');
+
             if (count($row) !== count($header)) {
                 continue;
             }
@@ -147,7 +168,15 @@ class TseApiClient
         if ($csvPath) {
             $extractDir = dirname($csvPath);
             if (is_dir($extractDir)) {
-                @unlink($csvPath);
+                $files = array_merge(
+                    glob($extractDir.'/*') ?: [],
+                    glob($extractDir.'/**/*') ?: []
+                );
+                foreach ($files as $file) {
+                    if (is_file($file)) {
+                        @unlink($file);
+                    }
+                }
                 @rmdir($extractDir);
             }
         }

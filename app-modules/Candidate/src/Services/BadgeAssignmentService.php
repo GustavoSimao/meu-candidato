@@ -17,7 +17,7 @@ class BadgeAssignmentService
             return;
         }
 
-        $percentileCache = DB::table('expenses')->sum('value');
+        $totalExpensesAll = DB::table('expenses')->sum('value');
         $expenseSums = DB::table('expenses')
             ->select('politician_id', DB::raw('sum(value) as total'))
             ->groupBy('politician_id')
@@ -27,10 +27,23 @@ class BadgeAssignmentService
             ->groupBy('author_id')
             ->pluck('total', 'politician_id');
 
+        $expensePercentiles = collect();
+        if ($totalExpensesAll > 0) {
+            $ranked = DB::table('expenses')
+                ->select('politician_id', DB::raw('sum(value) as total'))
+                ->groupBy('politician_id')
+                ->orderByDesc('total')
+                ->get();
+            $totalPoliticians = $ranked->count();
+            foreach ($ranked as $i => $row) {
+                $expensePercentiles[$row->politician_id] = round((($totalPoliticians - $i) / $totalPoliticians) * 100, 2);
+            }
+        }
+
         Politician::with(['mandates'])
-            ->chunk(100, function ($politicians) use ($badges, $percentileCache, $expenseSums, $billCounts) {
+            ->chunk(100, function ($politicians) use ($badges, $totalExpensesAll, $expenseSums, $billCounts, $expensePercentiles) {
                 foreach ($politicians as $politician) {
-                    $this->evaluatePolitician($politician, $badges, $percentileCache, $expenseSums, $billCounts);
+                    $this->evaluatePolitician($politician, $badges, $totalExpensesAll, $expenseSums, $billCounts, $expensePercentiles);
                 }
             });
     }
@@ -38,16 +51,17 @@ class BadgeAssignmentService
     public function evaluatePolitician(
         Politician $politician,
         ?iterable $badges = null,
-        ?float $percentileCache = null,
+        ?float $totalExpensesAll = null,
         ?Collection $expenseSums = null,
         ?Collection $billCounts = null,
+        ?Collection $expensePercentiles = null,
     ): array {
         $badges = $badges ?? BadgeDefinition::where('is_active', true)->get();
         $assigned = [];
 
         $politician->loadMissing(['mandates']);
 
-        $totalExpensesAll = $percentileCache ?? DB::table('expenses')->sum('value');
+        $totalExpensesAll = $totalExpensesAll ?? DB::table('expenses')->sum('value');
         $myExpenseTotal = ($expenseSums ?? DB::table('expenses')
             ->select(DB::raw('sum(value) as total'))
             ->where('politician_id', $politician->id)
@@ -56,9 +70,10 @@ class BadgeAssignmentService
             ->select(DB::raw('count(*) as total'))
             ->where('author_id', $politician->id)
             ->pluck('total'))->get($politician->id, 0);
+        $myPercentile = $expensePercentiles->get($politician->id, 0) ?? 0;
 
         foreach ($badges as $badge) {
-            if ($this->matchesRules($politician, $badge, $totalExpensesAll, $myExpenseTotal, $myBillCount)) {
+            if ($this->matchesRules($politician, $badge, $myPercentile, $myExpenseTotal, $myBillCount)) {
                 $assigned[] = $badge->id;
             }
         }
@@ -71,7 +86,7 @@ class BadgeAssignmentService
     private function matchesRules(
         Politician $politician,
         BadgeDefinition $badge,
-        float $totalExpensesAll,
+        float $myPercentile,
         float $myExpenseTotal,
         int $myBillCount,
     ): bool {
@@ -102,15 +117,13 @@ class BadgeAssignmentService
         }
 
         if (isset($rules['min_total_expenses_percentile'])) {
-            $percentile = $this->calculateExpensePercentile($myExpenseTotal, $totalExpensesAll);
-            if ($percentile < $rules['min_total_expenses_percentile']) {
+            if ($myPercentile < $rules['min_total_expenses_percentile']) {
                 return false;
             }
         }
 
         if (isset($rules['max_total_expenses_percentile'])) {
-            $percentile = $this->calculateExpensePercentile($myExpenseTotal, $totalExpensesAll);
-            if ($percentile > $rules['max_total_expenses_percentile']) {
+            if ($myPercentile > $rules['max_total_expenses_percentile']) {
                 return false;
             }
         }
@@ -144,18 +157,5 @@ class BadgeAssignmentService
         }
 
         return true;
-    }
-
-    private function calculateExpensePercentile(float $value, float $total): float
-    {
-        if ($total <= 0) {
-            return 0;
-        }
-
-        $politicianTotal = DB::table('expenses')
-            ->where('value', '<', $value)
-            ->sum('value');
-
-        return round(($politicianTotal / $total) * 100, 2);
     }
 }

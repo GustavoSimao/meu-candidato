@@ -23,10 +23,10 @@ class AtualizarDadosCommand extends Command
 
     private CamaraApiClient $camara;
 
-    public function __construct()
+    public function __construct(CamaraApiClient $camara)
     {
         parent::__construct();
-        $this->camara = new CamaraApiClient;
+        $this->camara = $camara;
     }
 
     public function handle(): int
@@ -76,7 +76,7 @@ class AtualizarDadosCommand extends Command
                 $placarSim = $votacao['placarSim'] ?? null;
                 $placarNao = $votacao['placarNao'] ?? null;
 
-                $billId = $this->extrairBillId($votacao['uriProposicaoObjeto'] ?? null);
+                $billId = $this->extrairBillId($votacao['uriProposicaoObjeto'] ?? null, $data);
 
                 VotingSession::updateOrCreate(
                     ['external_id' => $externalId],
@@ -98,7 +98,7 @@ class AtualizarDadosCommand extends Command
         return $count;
     }
 
-    private function extrairBillId(?string $uri): ?string
+    private function extrairBillId(?string $uri, ?string $sessionDate = null): ?string
     {
         if (! $uri) {
             return null;
@@ -112,7 +112,7 @@ class AtualizarDadosCommand extends Command
                 [
                     'title' => "Proposição #{$externalId}",
                     'status' => 'desconhecido',
-                    'year' => (int) date('Y'),
+                    'year' => $sessionDate ? (int) date('Y', strtotime($sessionDate)) : (int) date('Y'),
                 ]
             );
 

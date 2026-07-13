@@ -18,6 +18,10 @@ class FollowController extends Controller
             return response()->json(['error' => 'Não autenticado'], 401);
         }
 
+        if (! preg_match('/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i', $id)) {
+            return response()->json(['error' => 'ID inválido'], 422);
+        }
+
         $politician = Politician::find($id);
 
         if (! $politician) {
@@ -46,6 +50,10 @@ class FollowController extends Controller
 
         if (! $user) {
             return response()->json(['error' => 'Não autenticado'], 401);
+        }
+
+        if (! preg_match('/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i', $id)) {
+            return response()->json(['error' => 'ID inválido'], 422);
         }
 
         $politician = Politician::find($id);

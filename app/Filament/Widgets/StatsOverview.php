@@ -16,8 +16,10 @@ class StatsOverview extends BaseWidget
     protected function getStats(): array
     {
         return [
-            Stat::make('Políticos', Cache::remember('stats.politicians', 3600, fn () => Politician::count()))
-                ->description('Total cadastrados')
+            Stat::make('Políticos', Cache::remember('stats.politicians', 3600, fn () => Politician::whereHas('mandates', function ($q) {
+                $q->whereNull('ended_at')->orWhere('ended_at', '>=', now());
+            })->count()))
+                ->description('Em exercício')
                 ->descriptionIcon('heroicon-m-users')
                 ->color('success'),
             Stat::make('Partidos', Cache::remember('stats.parties', 3600, fn () => Party::count()))

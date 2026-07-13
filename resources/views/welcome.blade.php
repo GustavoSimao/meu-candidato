@@ -51,7 +51,9 @@
 
     {{-- Stats --}}
     @php
-        $politicianCount = \MeuCandidato\Candidate\Models\Politician::count();
+        $politicianCount = \MeuCandidato\Candidate\Models\Politician::whereHas('mandates', function ($q) {
+            $q->whereNull('ended_at')->orWhere('ended_at', '>=', now());
+        })->count();
         $partyCount = \MeuCandidato\Party\Models\Party::count();
         $billCount = \MeuCandidato\Legislative\Models\Bill::count();
         $expenseCount = \MeuCandidato\Transparency\Models\Expense::count();

@@ -4,13 +4,12 @@ namespace App\Livewire\Politicos;
 
 use App\Support\CaseInsensitiveSearch;
 use Illuminate\Contracts\View\View;
-use Illuminate\Pagination\LengthAwarePaginator;
 use Livewire\Attributes\On;
 use Livewire\Component;
 use Livewire\WithPagination;
-use MeuCandidato\Transparency\Models\Expense;
+use MeuCandidato\Legislative\Models\Rapporteurship;
 
-class VerDespesasModal extends Component
+class VerRelatoriasModal extends Component
 {
     use CaseInsensitiveSearch;
     use WithPagination;
@@ -26,7 +25,7 @@ class VerDespesasModal extends Component
         $this->politicianId = $politicianId;
     }
 
-    #[On('openDespesasModal')]
+    #[On('open-relatorias')]
     public function open(): void
     {
         $this->isOpen = true;
@@ -40,24 +39,18 @@ class VerDespesasModal extends Component
 
     public function render(): View
     {
-        if (! $this->politicianId) {
-            return view('livewire.politicos.ver-despesas-modal', [
-                'expenses' => new LengthAwarePaginator([], 0, 15),
-            ]);
-        }
-
-        $expenses = Expense::where('politician_id', $this->politicianId)
+        $rapporteurships = Rapporteurship::where('politician_id', $this->politicianId)
             ->when($this->search, function ($q) {
                 $q->where(function ($sub) {
-                    $this->whereCaseInsensitive($sub, 'type', '%'.$this->search.'%')
-                        ->orWhereRaw('LOWER(description) LIKE LOWER(?)', ['%'.$this->search.'%']);
+                    $this->whereCaseInsensitive($sub, 'bill_description', '%'.$this->search.'%')
+                        ->orWhereRaw('LOWER(commission_name) LIKE LOWER(?)', ['%'.$this->search.'%']);
                 });
             })
-            ->orderByDesc('document_date')
+            ->orderByDesc('start_date')
             ->paginate(15);
 
-        return view('livewire.politicos.ver-despesas-modal', [
-            'expenses' => $expenses,
+        return view('livewire.politicos.ver-relatorias-modal', [
+            'rapporteurships' => $rapporteurships,
         ]);
     }
 }

@@ -207,10 +207,50 @@ class CamaraApiClient
         return $response->body();
     }
 
+    public function downloadArquivoJsonToDisk(string $tipo, int $ano): ?string
+    {
+        $url = self::ARQUIVOS_URL.'/'.$tipo.'/json/'.$tipo.'-'.$ano.'.json';
+        $tempDir = storage_path('app/temp_downloads');
+
+        if (! is_dir($tempDir)) {
+            mkdir($tempDir, 0755, true);
+        }
+
+        $destPath = $tempDir.'/'.$tipo.'-'.$ano.'.json';
+
+        try {
+            $response = Http::timeout(120)->withOptions(['stream' => true])->get($url);
+
+            if ($response->failed()) {
+                Log::error('Erro ao baixar arquivo da Câmara', [
+                    'url' => $url,
+                    'status' => $response->status(),
+                ]);
+
+                return null;
+            }
+
+            $body = $response->getBody();
+            $handle = fopen($destPath, 'w');
+
+            while (! $body->eof()) {
+                fwrite($handle, $body->read(65536));
+            }
+
+            fclose($handle);
+
+            return $destPath;
+        } catch (\Throwable $e) {
+            Log::error('Erro ao baixar arquivo da Câmara', ['url' => $url, 'error' => $e->getMessage()]);
+
+            return null;
+        }
+    }
+
     public function streamVotosBulk(int $ano, callable $callback): void
     {
         $url = self::ARQUIVOS_URL.'/votacoesVotos/json/votacoesVotos-'.$ano.'.json';
-        $tempFile = storage_path('app/temp-votos-'.$ano.'.json');
+        $tempFile = storage_path('app/temp-votos-'.$ano.'-'.getmypid().'.json');
 
         try {
             $response = Http::timeout(120)->withOptions(['stream' => true])->get($url);
@@ -234,6 +274,7 @@ class CamaraApiClient
             $this->processarVotosBulk($tempFile, $callback);
         } catch (\Throwable $e) {
             Log::error('Erro no streaming de votos', ['ano' => $ano, 'error' => $e->getMessage()]);
+            throw $e;
         } finally {
             if (file_exists($tempFile)) {
                 @unlink($tempFile);
@@ -504,5 +545,134 @@ class CamaraApiClient
         }
 
         return 0;
+    }
+
+    public function downloadCotasCeap(int $ano): ?string
+    {
+        $url = self::ARQUIVOS_URL.'/despesasCota/json/despesasCota-'.$ano.'.json';
+        $tempDir = storage_path('app/cotas_temp');
+
+        if (! is_dir($tempDir)) {
+            mkdir($tempDir, 0755, true);
+        }
+
+        $destPath = $tempDir.'/despesasCota-'.$ano.'.json';
+
+        try {
+            $response = Http::timeout(120)->withOptions(['stream' => true])->get($url);
+
+            if ($response->failed()) {
+                Log::warning('Download CEAP não disponível', ['url' => $url, 'status' => $response->status()]);
+
+                return null;
+            }
+
+            $body = $response->getBody();
+            $handle = fopen($destPath, 'w');
+
+            while (! $body->eof()) {
+                fwrite($handle, $body->read(65536));
+            }
+
+            fclose($handle);
+
+            return $destPath;
+        } catch (\Throwable $e) {
+            Log::error('Erro ao baixar cotas CEAP', ['ano' => $ano, 'error' => $e->getMessage()]);
+
+            return null;
+        }
+    }
+
+    public function streamCotasFromDisk(string $jsonPath, callable $callback): void
+    {
+        if (! file_exists($jsonPath)) {
+            return;
+        }
+
+        $handle = fopen($jsonPath, 'r');
+        if (! $handle) {
+            return;
+        }
+
+        $state = 'seeking';
+        $braceDepth = 0;
+        $objectBuffer = '';
+        $inString = false;
+        $escaped = false;
+
+        while (($line = fgets($handle)) !== false) {
+            $len = strlen($line);
+
+            for ($i = 0; $i < $len; $i++) {
+                $char = $line[$i];
+
+                if ($state === 'seeking') {
+                    if ($char === '"' && substr($line, $i, 7) === '"dados"') {
+                        $state = 'in_data';
+                        $i += 6;
+                    }
+
+                    continue;
+                }
+
+                if ($state === 'in_data') {
+                    if ($char === '[' && $braceDepth === 0) {
+                        $state = 'in_object';
+                        $braceDepth = 0;
+
+                        continue;
+                    }
+                }
+
+                if ($state === 'in_object') {
+                    $objectBuffer .= $char;
+
+                    if ($inString) {
+                        if ($escaped) {
+                            $escaped = false;
+                        } elseif ($char === '\\') {
+                            $escaped = true;
+                        } elseif ($char === '"') {
+                            $inString = false;
+                        }
+
+                        continue;
+                    }
+
+                    if ($char === '"') {
+                        $inString = true;
+                    } elseif ($char === '{') {
+                        $braceDepth++;
+                    } elseif ($char === '}') {
+                        $braceDepth--;
+                        if ($braceDepth === 0) {
+                            $obj = json_decode($objectBuffer, true);
+                            $objectBuffer = '';
+
+                            if (is_array($obj)) {
+                                $callback($obj);
+                            }
+                        }
+                    } elseif ($char === ']' && $braceDepth === 0) {
+                        fclose($handle);
+
+                        return;
+                    }
+                }
+            }
+        }
+
+        fclose($handle);
+    }
+
+    public function cleanupCotasExtract(int $ano): void
+    {
+        $tempDir = storage_path('app/cotas_temp');
+        $jsonPath = $tempDir.'/despesasCota-'.$ano.'.json';
+
+        if (file_exists($jsonPath)) {
+            @unlink($jsonPath);
+        }
     }
 }

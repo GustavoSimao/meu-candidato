@@ -29,6 +29,8 @@ class Politician extends Model
 {
     use HasUuids;
 
+    protected $table = 'politicians';
+
     protected $fillable = [
         'name',
         'cpf',
