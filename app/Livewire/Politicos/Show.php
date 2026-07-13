@@ -15,9 +15,65 @@ class Show extends Component
 {
     public string $id;
 
+    public bool $showTrajetoria = false;
+
+    public bool $showAtividade = false;
+
+    public bool $showDespesas = false;
+
+    public bool $showFinanciamento = false;
+
+    public bool $showComissoes = false;
+
+    public bool $showBens = false;
+
+    public bool $showProcessos = false;
+
+    public bool $showDadosPessoais = false;
+
     public function mount(string $id): void
     {
         $this->id = $id;
+    }
+
+    public function toggleTrajetoria(): void
+    {
+        $this->showTrajetoria = ! $this->showTrajetoria;
+    }
+
+    public function toggleAtividade(): void
+    {
+        $this->showAtividade = ! $this->showAtividade;
+    }
+
+    public function toggleDespesas(): void
+    {
+        $this->showDespesas = ! $this->showDespesas;
+    }
+
+    public function toggleFinanciamento(): void
+    {
+        $this->showFinanciamento = ! $this->showFinanciamento;
+    }
+
+    public function toggleComissoes(): void
+    {
+        $this->showComissoes = ! $this->showComissoes;
+    }
+
+    public function toggleBens(): void
+    {
+        $this->showBens = ! $this->showBens;
+    }
+
+    public function toggleProcessos(): void
+    {
+        $this->showProcessos = ! $this->showProcessos;
+    }
+
+    public function toggleDadosPessoais(): void
+    {
+        $this->showDadosPessoais = ! $this->showDadosPessoais;
     }
 
     public function toggleFollow(): void
@@ -80,6 +136,9 @@ class Show extends Component
             'rapporteurships',
             'billCoauthors',
             'parliamentaryBlocs',
+            'assetDeclarations',
+            'legalProceedings',
+            'campaignFinancings',
         ])->withCount(['expenses', 'votes', 'speeches', 'events'])->find($this->id);
 
         if (! $p) {
@@ -119,16 +178,6 @@ class Show extends Component
             ->limit(3)
             ->get(['id', 'type', 'description', 'value', 'document_date']);
 
-        $speeches = $p->speeches()
-            ->orderByDesc('date')
-            ->limit(5)
-            ->get(['id', 'source', 'title', 'resume', 'date', 'session_name', 'uri']);
-
-        $events = $p->events()
-            ->orderByDesc('start_date')
-            ->limit(5)
-            ->get(['id', 'title', 'type', 'start_date', 'location']);
-
         $expenseAgg = DB::table('expenses')
             ->where('politician_id', $p->id)
             ->selectRaw('SUM(value) as total, type, COUNT(*) as cnt')
@@ -136,9 +185,42 @@ class Show extends Component
             ->orderByDesc('total')
             ->get();
 
+        $totalExpenses = (float) $expenseAgg->sum('total');
+
+        $bancada = $p->party?->acronym;
+        $bancadaAvg = null;
+        if ($bancada && $totalExpenses > 0) {
+            $bancadaAvg = DB::table('expenses')
+                ->join('politicians', 'expenses.politician_id', '=', 'politicians.id')
+                ->join('parties', 'politicians.party_id', '=', 'parties.id')
+                ->where('parties.acronym', $bancada)
+                ->where('expenses.politician_id', '!=', $p->id)
+                ->avg('expenses.value') ?? 0;
+            $bancadaAvg = (float) $bancadaAvg * ($p->expenses_count ?: 1);
+        }
+
+        $assetDeclarations = $p->assetDeclarations()
+            ->orderByDesc('year')
+            ->get(['id', 'year', 'type', 'description', 'value']);
+
+        $legalProceedings = $p->legalProceedings()
+            ->get(['id', 'case_number', 'court', 'status', 'description', 'source_url']);
+
+        $campaignFinancings = $p->campaignFinancings()
+            ->get(['id', 'source', 'type', 'value', 'election_year']);
+
+        $totalCampanha = (float) $campaignFinancings->sum('value');
+
+        $fontesCampanha = $campaignFinancings->groupBy('type')->map(fn ($items) => [
+            'type' => $items->first()->type,
+            'total' => (float) $items->sum('value'),
+            'count' => $items->count(),
+        ])->values()->all();
+
         return [
             'id' => $p->id,
             'name' => $p->name,
+            'nome_urna' => $p->nome_urna,
             'photo' => $p->photo_url,
             'party' => $p->party?->acronym ?? 'S/',
             'party_name' => $p->party?->name ?? 'Partido desconhecido',
@@ -148,6 +230,12 @@ class Show extends Component
             'birth_date' => $p->birth_date?->format('d/m/Y'),
             'declared_profession' => $p->declared_profession,
             'defends' => $p->defends,
+            'email' => $p->email,
+            'phone' => $p->phone,
+            'office' => $p->office,
+            'social_media' => $p->social_media ?? [],
+            'uf_birth' => $p->uf_birth,
+            'municipality_birth' => $p->municipality_birth,
             'bills_count' => $billsCount,
             'expenses_count' => $p->expenses_count,
             'votes_count' => $p->votes_count,
@@ -185,29 +273,13 @@ class Show extends Component
                 'total' => (float) $row->total,
                 'count' => (int) $row->cnt,
             ])->all(),
-            'total_expenses' => (float) $expenseAgg->sum('total'),
+            'total_expenses' => $totalExpenses,
+            'bancada_avg' => $bancadaAvg,
             'badges' => $p->badges->map(fn ($b) => [
                 'name' => $b->label,
                 'color' => $b->color,
                 'type' => $b->badge_type,
                 'description' => $b->description,
-            ])->values()->all(),
-            'speeches_count' => $p->speeches_count,
-            'events_count' => $p->events_count,
-            'speeches' => $speeches->map(fn ($s) => [
-                'id' => $s->id,
-                'source' => $s->source,
-                'title' => $s->title ?? $s->resume ?? '—',
-                'date' => $s->date ? date('d/m/Y', strtotime($s->date)) : null,
-                'session_name' => $s->session_name,
-                'uri' => $s->uri,
-            ])->values()->all(),
-            'events' => $events->map(fn ($e) => [
-                'id' => $e->id,
-                'title' => $e->title,
-                'type' => $e->type,
-                'date' => $e->start_date ? date('d/m/Y', strtotime($e->start_date)) : null,
-                'location' => $e->location,
             ])->values()->all(),
             'committees' => $p->committeeMemberships->map(fn ($c) => [
                 'name' => $c->name,
@@ -245,6 +317,24 @@ class Show extends Component
                 'is_federation' => $b->is_federation,
                 'legislature' => $b->legislature,
             ])->values()->all(),
+            'asset_declarations' => $assetDeclarations->map(fn ($a) => [
+                'year' => $a->year,
+                'type' => $a->type,
+                'description' => $a->description,
+                'value' => (float) $a->value,
+            ])->values()->all(),
+            'legal_proceedings' => $legalProceedings->map(fn ($lp) => [
+                'process_number' => $lp->case_number,
+                'court' => $lp->court,
+                'status' => $lp->status,
+                'description' => $lp->description,
+                'source_url' => $lp->source_url,
+            ])->values()->all(),
+            'campaign_financings' => $fontesCampanha,
+            'total_campanha' => $totalCampanha,
+            'doadores' => [],
+            'committees_count' => count($p->committeeMemberships),
+            'badges_count' => count($p->badges),
         ];
     }
 

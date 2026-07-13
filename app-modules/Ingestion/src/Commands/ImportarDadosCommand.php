@@ -271,6 +271,36 @@ class ImportarDadosCommand extends Command
         $foto = $dep['ultimoStatus']['urlFoto'] ?? $dep['urlFoto'] ?? null;
         $dataNascimento = $dep['dataNascimento'] ?? null;
         $escolaridade = $dep['ultimoStatus']['escolaridade'] ?? null;
+        $nomeUrna = $dep['ultimoStatus']['nomeEleitoral'] ?? null;
+        $email = $dep['ultimoStatus']['gabinete']['email'] ?? null;
+        $telefone = $dep['ultimoStatus']['gabinete']['telefone'] ?? null;
+        $gabinete = $dep['ultimoStatus']['gabinete']['nome'] ?? null;
+        $predio = $dep['ultimoStatus']['gabinete']['predio'] ?? null;
+        $ufNascimento = $dep['ufNascimento'] ?? null;
+        $municipioNascimento = $dep['municipioNascimento'] ?? null;
+
+        $redeSocial = $dep['redeSocial'] ?? [];
+        $socialMedia = [];
+        if (is_array($redeSocial)) {
+            foreach ($redeSocial as $url) {
+                if (str_contains($url, 'twitter.com') || str_contains($url, 'x.com')) {
+                    $socialMedia[] = ['platform' => 'twitter', 'url' => $url];
+                } elseif (str_contains($url, 'instagram.com')) {
+                    $socialMedia[] = ['platform' => 'instagram', 'url' => $url];
+                } elseif (str_contains($url, 'facebook.com')) {
+                    $socialMedia[] = ['platform' => 'facebook', 'url' => $url];
+                } elseif (str_contains($url, 'tiktok.com')) {
+                    $socialMedia[] = ['platform' => 'tiktok', 'url' => $url];
+                } elseif (str_contains($url, 'youtube.com')) {
+                    $socialMedia[] = ['platform' => 'youtube', 'url' => $url];
+                }
+            }
+        }
+
+        $office = null;
+        if ($gabinete || $predio) {
+            $office = trim(($gabinete ?? '').' - '.($predio ?? ''));
+        }
 
         $party = $this->findOrCreateParty($siglaPartido);
 
@@ -278,11 +308,18 @@ class ImportarDadosCommand extends Command
             ['external_id' => $idExterno],
             [
                 'name' => $nome,
+                'nome_urna' => $nomeUrna,
                 'party_id' => $party->id,
                 'birth_date' => $dataNascimento,
                 'education' => $escolaridade,
                 'photo_url' => $foto,
                 'position' => 'Deputado Federal',
+                'email' => $email,
+                'phone' => $telefone,
+                'office' => $office,
+                'social_media' => $socialMedia ?: null,
+                'uf_birth' => $ufNascimento,
+                'municipality_birth' => $municipioNascimento,
             ]
         );
 

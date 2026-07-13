@@ -33,15 +33,22 @@ class Politician extends Model
 
     protected $fillable = [
         'name',
+        'nome_urna',
         'cpf',
         'party_id',
         'birth_date',
+        'uf_birth',
+        'municipality_birth',
         'education',
         'declared_profession',
         'external_id',
         'photo_url',
         'government_plan_url',
         'position',
+        'email',
+        'phone',
+        'office',
+        'social_media',
         'defends',
         'trendings',
         'active_processes',
@@ -49,6 +56,7 @@ class Politician extends Model
 
     protected $casts = [
         'birth_date' => 'date',
+        'social_media' => 'array',
         'active_processes' => 'integer',
     ];
 

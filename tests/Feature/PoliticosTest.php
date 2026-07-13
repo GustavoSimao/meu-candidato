@@ -2,7 +2,9 @@
 
 namespace Tests\Feature;
 
+use App\Livewire\Politicos\Show;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Livewire\Livewire;
 use MeuCandidato\Candidate\Models\BadgeDefinition;
 use MeuCandidato\Candidate\Models\Politician;
 use MeuCandidato\Geography\Models\Address;
@@ -139,12 +141,13 @@ class PoliticosTest extends TestCase
             ]);
         }
 
-        $response = $this->get(route('politicos.show', $politician->id));
+        $component = Livewire::test(Show::class, ['id' => $politician->id]);
+        $component->assertOk();
+        $component->assertSee('R$ 31.000,00');
 
-        $response->assertOk();
-        $response->assertSee('R$ 31.000,00');
-        $response->assertSee('30 documentos');
-        $response->assertSee('5 documentos');
+        $component->call('toggleDespesas');
+        $component->assertSee('30 documentos');
+        $component->assertSee('5 documentos');
     }
 
     public function test_profile_shows_bills_and_votes(): void
@@ -172,12 +175,13 @@ class PoliticosTest extends TestCase
             'vote' => 'Sim',
         ]);
 
-        $response = $this->get(route('politicos.show', $politician->id));
+        $component = Livewire::test(Show::class, ['id' => $politician->id]);
+        $component->assertOk();
 
-        $response->assertOk();
-        $response->assertSee('Projeto de Transparência');
-        $response->assertSee('Sim');
-        $response->assertSee('01/06/2025');
+        $component->call('toggleAtividade');
+        $component->assertSee('Projeto de Transparência');
+        $component->assertSee('Sim');
+        $component->assertSee('01/06/2025');
     }
 
     public function test_profile_shows_badges(): void
@@ -243,11 +247,12 @@ class PoliticosTest extends TestCase
             ]);
         }
 
-        $response = $this->get(route('politicos.show', $politician->id));
+        $component = Livewire::test(Show::class, ['id' => $politician->id]);
+        $component->assertOk();
 
-        $response->assertOk();
-        $response->assertSee('Ver todas');
-        $response->assertSee('openProposicoesModal');
+        $component->call('toggleAtividade');
+        $component->assertSee('Ver todas');
+        $component->assertSee('openProposicoesModal');
     }
 
     public function test_expenses_show_ver_todas_button_when_more_than_3(): void
@@ -265,10 +270,11 @@ class PoliticosTest extends TestCase
             ]);
         }
 
-        $response = $this->get(route('politicos.show', $politician->id));
+        $component = Livewire::test(Show::class, ['id' => $politician->id]);
+        $component->assertOk();
 
-        $response->assertOk();
-        $response->assertSee('openDespesasModal');
+        $component->call('toggleDespesas');
+        $component->assertSee('openDespesasModal');
     }
 
     public function test_votes_link_to_camara_when_session_has_external_id(): void
@@ -287,10 +293,11 @@ class PoliticosTest extends TestCase
             'vote' => 'Sim',
         ]);
 
-        $response = $this->get(route('politicos.show', $politician->id));
+        $component = Livewire::test(Show::class, ['id' => $politician->id]);
+        $component->assertOk();
 
-        $response->assertOk();
-        $response->assertSee('camara.leg.br/plenario/votacao/12345');
+        $component->call('toggleAtividade');
+        $component->assertSee('camara.leg.br/plenario/votacao/12345');
     }
 
     public function test_bill_linking_via_extrair_bill_uri(): void
