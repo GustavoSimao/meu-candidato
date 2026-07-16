@@ -70,7 +70,7 @@ class BadgeAssignmentService
             ->select(DB::raw('count(*) as total'))
             ->where('author_id', $politician->id)
             ->pluck('total'))->get($politician->id, 0);
-        $myPercentile = $expensePercentiles->get($politician->id, 0) ?? 0;
+        $myPercentile = ($expensePercentiles ?? collect())->get($politician->id, 0) ?? 0;
 
         foreach ($badges as $badge) {
             if ($this->matchesRules($politician, $badge, $myPercentile, $myExpenseTotal, $myBillCount)) {

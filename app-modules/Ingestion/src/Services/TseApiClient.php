@@ -80,6 +80,21 @@ class TseApiClient
 
     public function extractReceitasCsvs(string $zipPath): array
     {
+        return $this->extractCsvsByPattern($zipPath, 'receitas_candidatos_');
+    }
+
+    public function extractBensCsvs(string $zipPath): array
+    {
+        return $this->extractCsvsByPattern($zipPath, 'bens_candidatos_');
+    }
+
+    public function extractCandidatosCsvs(string $zipPath): array
+    {
+        return $this->extractCsvsByPattern($zipPath, 'candidatos_');
+    }
+
+    private function extractCsvsByPattern(string $zipPath, string $prefix): array
+    {
         $extractDir = dirname($zipPath).'/extracted_'.basename($zipPath, '.zip');
 
         if (! is_dir($extractDir)) {
@@ -96,7 +111,7 @@ class TseApiClient
         $zip->extractTo($extractDir);
         $zip->close();
 
-        $csvFiles = glob($extractDir.'/receitas_candidatos_*.csv');
+        $csvFiles = glob($extractDir.'/'.$prefix.'*.csv');
 
         usort($csvFiles, function ($a, $b) {
             $aBras = str_contains($a, 'BRASIL');
@@ -115,6 +130,11 @@ class TseApiClient
     }
 
     public function streamReceitasCsv(string $csvPath, callable $callback): int
+    {
+        return $this->streamCsv($csvPath, $callback);
+    }
+
+    public function streamCsv(string $csvPath, callable $callback): int
     {
         if (! file_exists($csvPath)) {
             return 0;

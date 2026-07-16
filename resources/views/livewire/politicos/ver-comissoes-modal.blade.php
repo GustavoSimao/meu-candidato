@@ -23,7 +23,7 @@
                                 <div class="bg-white border border-zinc-200 rounded-lg px-4 py-3">
                                     <div class="flex items-center gap-3">
                                         <div class="flex-1 min-w-0">
-                                            <p class="text-sm font-medium text-zinc-900 line-clamp-1">{{ $committee->acronym }} — {{ $committee->name }}</p>
+                                            <p class="text-sm font-medium text-zinc-900 line-clamp-1">{{ $committee->acronym }} · {{ $committee->name }}</p>
                                             <div class="flex items-center gap-2 mt-1">
                                                 @if ($committee->role)
                                                     <span class="text-xs text-zinc-600">{{ $committee->role }}</span>

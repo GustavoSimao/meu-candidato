@@ -23,9 +23,4 @@ class IngestionJob extends Model
         'finished_at' => 'datetime',
         'records_count' => 'integer',
     ];
-
-    public function rawDataRecords()
-    {
-        return $this->hasMany(RawDataRecord::class);
-    }
 }

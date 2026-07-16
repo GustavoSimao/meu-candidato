@@ -32,7 +32,7 @@
                                             <span class="text-xs text-zinc-500">
                                                 {{ $rapporteurship->start_date?->format('d/m/Y') }}
                                                 @if ($rapporteurship->end_date)
-                                                    — {{ $rapporteurship->end_date?->format('d/m/Y') }}
+                                                    a {{ $rapporteurship->end_date?->format('d/m/Y') }}
                                                 @endif
                                             </span>
                                         </div>

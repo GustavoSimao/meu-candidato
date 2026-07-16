@@ -6,10 +6,10 @@ use Illuminate\Console\Command;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use MeuCandidato\Candidate\Models\Politician;
-use MeuCandidato\Ingestion\Models\IngestionJob;
 use MeuCandidato\Ingestion\Services\CamaraApiClient;
 use MeuCandidato\Ingestion\Services\SenadoApiClient;
 use MeuCandidato\Ingestion\Services\TseApiClient;
+use MeuCandidato\Ingestion\Support\ManagesJobs;
 use MeuCandidato\Legislative\Models\Bill;
 use MeuCandidato\Legislative\Models\BillCoauthor;
 use MeuCandidato\Legislative\Models\BillProgress;
@@ -26,11 +26,15 @@ use MeuCandidato\Legislative\Models\Vote;
 use MeuCandidato\Legislative\Models\VotingSession;
 use MeuCandidato\Mandate\Models\Mandate;
 use MeuCandidato\Party\Models\Party;
+use MeuCandidato\Transparency\Models\AssetDeclaration;
 use MeuCandidato\Transparency\Models\CampaignFinancing;
 use MeuCandidato\Transparency\Models\Expense;
+use MeuCandidato\Transparency\Models\LegalProceeding;
 
 class ImportarDadosCommand extends Command
 {
+    use ManagesJobs;
+
     protected $signature = 'importar-dados
                             {subcomando? : Subcomando a executar}
                             {--ano-inicio=2001 : Ano inicial para dados legislativos}
@@ -152,6 +156,10 @@ class ImportarDadosCommand extends Command
             'discursos-senado' => $this->importarDiscursosSenado(),
             'relatorias-senado' => $this->importarRelatoriasSenado(),
             'liderancas-senado' => $this->importarLiderancasSenado(),
+            'presidentes' => $this->importarPresidentes(),
+            'declaracoes-bens' => $this->importarDeclaracoesBens($anoFim),
+            'processos-judiciais' => $this->importarProcessosJudiciais(),
+            'trending' => $this->definirTrending(),
             'vincular-bills-autores' => $this->vincularBillsAutores(),
             'todos' => $this->importarTodos($anoInicio, $anoFim),
             default => $this->errorSubcomando($subcomando),
@@ -163,11 +171,12 @@ class ImportarDadosCommand extends Command
         $this->error("Subcomando '{$subcomando}' não encontrado. Opções disponíveis:");
         $this->line('  Dados base: partidos, deputados, senadores, mandatos');
         $this->line('  Legislação: proposicoes, votacoes, votacoes-sessoes, votos, votos-bulk');
-        $this->line('  Transparência: despesas, despesas-ceap, despesas-deputados, despesas-mes, financiamento-campanha');
+        $this->line('  Transparência: despesas, despesas-ceap, despesas-deputados, despesas-mes, financiamento-campanha, declaracoes-bens, processos-judiciais');
         $this->line('  Senado: senador-votos, senador-autorias, comissoes-senado, discursos-senado, relatorias-senado, liderancas-senado');
         $this->line('  Câmara extras: discursos-camara, eventos-camara, frentes-camara, orgaos-camara');
         $this->line('  Enriquecimento: orientacoes-votacao, temas-proposicoes, tramitacao-proposicoes, autores-proposicoes, blocos');
         $this->line('  Vínculos: vincular-bills-autores');
+        $this->line('  Destaque: trending');
         $this->line('  Geral: todos');
 
         return self::FAILURE;
@@ -1035,7 +1044,7 @@ class ImportarDadosCommand extends Command
 
             for ($ano = $anoInicio; $ano <= $anoFim; $ano++) {
                 $this->info("  Baixando cotas CEAP de {$ano}...");
-                $jsonPath = $this->camara->downloadCotasCeat($ano);
+                $jsonPath = $this->camara->downloadCotasCeap($ano);
 
                 if (! $jsonPath || ! file_exists($jsonPath)) {
                     $this->warn("  Cotas de {$ano} não disponíveis.");
@@ -1122,7 +1131,20 @@ class ImportarDadosCommand extends Command
             'mandatos' => 'Mandatos',
             'proposicoes' => 'Proposições',
             'votacoes' => 'Votações',
+            'votos' => 'Votos',
             'despesas' => 'Despesas',
+            'senador-votos' => 'Votos de Senadores',
+            'senador-autorias' => 'Autorias de Senadores',
+            'discursos-camara' => 'Discursos (Câmara)',
+            'eventos-camara' => 'Eventos (Câmara)',
+            'orientacoes-votacao' => 'Orientações de Votação',
+            'temas-proposicoes' => 'Temas das Proposições',
+            'tramitacao-proposicoes' => 'Tramitação das Proposições',
+            'autores-proposicoes' => 'Autores das Proposições',
+            'comissoes-senado' => 'Comissões (Senado)',
+            'discursos-senado' => 'Discursos (Senado)',
+            'declaracoes-bens' => 'Declarações de Bens',
+            'trending' => 'Destaques',
         ];
 
         foreach ($etapas as $subcomando => $label) {
@@ -2182,41 +2204,6 @@ class ImportarDadosCommand extends Command
         }
     }
 
-    private function criarJob(string $source): IngestionJob
-    {
-        return IngestionJob::create([
-            'source' => $source,
-            'status' => 'processing',
-            'started_at' => now(),
-            'records_count' => 0,
-        ]);
-    }
-
-    private function finalizarJob(IngestionJob $job, int $count): void
-    {
-        $job->update([
-            'status' => 'completed',
-            'finished_at' => now(),
-            'records_count' => $count,
-        ]);
-    }
-
-    private function falharJob(IngestionJob $job, \Throwable $e): void
-    {
-        $job->update([
-            'status' => 'failed',
-            'finished_at' => now(),
-            'error_log' => $e->getMessage()."\n".$e->getTraceAsString(),
-        ]);
-
-        Log::error('Falha na importação de dados', [
-            'job_id' => $job->id,
-            'error' => $e->getMessage(),
-        ]);
-
-        $this->error("Erro: {$e->getMessage()}");
-    }
-
     private function vincularBillsAutores(): int
     {
         $limite = $this->getLimite();
@@ -2288,6 +2275,356 @@ class ImportarDadosCommand extends Command
 
             $this->finalizarJob($job, $count);
             $this->info("Processados {$count} bills. Vinculados {$linked} autores.");
+
+            return self::SUCCESS;
+        } catch (\Throwable $e) {
+            $this->falharJob($job, $e);
+
+            return self::FAILURE;
+        }
+    }
+
+    private function definirTrending(): int
+    {
+        $this->info('Definindo políticos em destaque (trending)...');
+
+        $trending = [
+            // 1-2: Presidente e Vice (fixos)
+            [
+                'external_id' => 'tse_presidente_2022_lula',
+                'trending_order' => 1,
+                'trendings' => 'Presidente da República',
+            ],
+            [
+                'external_id' => 'tse_vice_2022_alckmin',
+                'trending_order' => 2,
+                'trendings' => 'Vice-Presidente da República',
+            ],
+            // 3-4: Direita
+            [
+                'name_search' => 'Nikolas Ferreira',
+                'trending_order' => 3,
+                'trendings' => 'Líder em relevância nas redes sociais',
+            ],
+            [
+                'name_search' => 'Gustavo Gayer',
+                'trending_order' => 4,
+                'trendings' => 'Maior volume de interações no Brasil',
+            ],
+            // 5-6: Esquerda
+            [
+                'name_search' => 'Erika Hilton',
+                'trending_order' => 5,
+                'trendings' => 'Publicação mais engajada no X sobre PL da Misoginia',
+            ],
+            [
+                'name_search' => 'André Janones',
+                'trending_order' => 6,
+                'trendings' => 'Denúncias rápidas e pautas governamentais',
+            ],
+            // 7-8: Centro
+            [
+                'name_search' => 'Fábio Teruel',
+                'trending_order' => 7,
+                'trendings' => 'Líder em engajamento no centro',
+            ],
+            [
+                'name_search' => 'Delegado Bruno Lima',
+                'trending_order' => 8,
+                'trendings' => 'Proteção animal e segurança pública',
+            ],
+        ];
+
+        $count = 0;
+
+        foreach ($trending as $data) {
+            $query = isset($data['external_id'])
+                ? Politician::where('external_id', $data['external_id'])
+                : Politician::where('name', 'LIKE', '%'.$data['name_search'].'%');
+
+            $politician = $query->first();
+
+            if (! $politician) {
+                $this->warn('  ⚠ Não encontrado: '.($data['name_search'] ?? $data['external_id']));
+
+                continue;
+            }
+
+            $politician->update([
+                'trending_order' => $data['trending_order'],
+                'trendings' => $data['trendings'],
+            ]);
+
+            $this->info("  ✓ {$politician->name} — #{$data['trending_order']}: {$data['trendings']}");
+            $count++;
+        }
+
+        $this->info("{$count} políticos definidos como trending.");
+
+        return self::SUCCESS;
+    }
+
+    private function importarPresidentes(): int
+    {
+        $this->info('Importando presidente e vice-presidente da República...');
+
+        $job = $this->criarJob('presidentes_tse');
+
+        try {
+            $count = 0;
+
+            $presidentes = [
+                [
+                    'name' => 'Luiz Inácio Lula da Silva',
+                    'nome_urna' => 'Lula',
+                    'party_acronym' => 'PT',
+                    'party_name' => 'Partido dos Trabalhadores',
+                    'position' => 'Presidente da República',
+                    'birth_date' => '1945-10-27',
+                    'uf_birth' => 'PE',
+                    'municipality_birth' => 'Garanhuns',
+                    'education' => 'Ensino fundamental',
+                    'declared_profession' => 'Metalúrgico',
+                    'external_id' => 'tse_presidente_2022_lula',
+                    'photo_url' => 'https://upload.wikimedia.org/wikipedia/commons/2/2f/Lula_-_2023_%28cropped%29.jpg',
+                    'mandate_start' => '2023-01-01',
+                    'mandate_end' => null,
+                ],
+                [
+                    'name' => 'Geraldo José Rodrigues Alckmin Filho',
+                    'nome_urna' => 'Alckmin',
+                    'party_acronym' => 'PSB',
+                    'party_name' => 'Partido Socialista Brasileiro',
+                    'position' => 'Vice-Presidente da República',
+                    'birth_date' => '1952-10-07',
+                    'uf_birth' => 'SP',
+                    'municipality_birth' => 'Pindamonhangaba',
+                    'education' => 'Doutorado',
+                    'declared_profession' => 'Médico',
+                    'external_id' => 'tse_vice_2022_alckmin',
+                    'photo_url' => 'https://upload.wikimedia.org/wikipedia/commons/3/33/Geraldo_Alckmin_em_2023.jpg',
+                    'mandate_start' => '2023-01-01',
+                    'mandate_end' => null,
+                ],
+            ];
+
+            foreach ($presidentes as $data) {
+                $party = $this->findOrCreateParty($data['party_acronym']);
+                if ($party->name === $data['party_acronym']) {
+                    $party->update(['name' => $data['party_name']]);
+                }
+
+                $politician = Politician::firstOrCreate(
+                    ['external_id' => $data['external_id']],
+                    [
+                        'name' => $data['name'],
+                        'nome_urna' => $data['nome_urna'],
+                        'party_id' => $party->id,
+                        'position' => $data['position'],
+                        'birth_date' => $data['birth_date'],
+                        'uf_birth' => $data['uf_birth'],
+                        'municipality_birth' => $data['municipality_birth'],
+                        'education' => $data['education'],
+                        'declared_profession' => $data['declared_profession'],
+                        'photo_url' => $data['photo_url'],
+                    ]
+                );
+
+                $count++;
+
+                $mandateExists = Mandate::where('politician_id', $politician->id)
+                    ->where('position', $data['position'])
+                    ->exists();
+
+                if (! $mandateExists) {
+                    Mandate::create([
+                        'politician_id' => $politician->id,
+                        'position' => $data['position'],
+                        'started_at' => $data['mandate_start'],
+                        'ended_at' => $data['mandate_end'],
+                    ]);
+                }
+
+                $this->info("  ✓ {$data['nome_urna']} ({$data['party_acronym']}) — {$data['position']}");
+            }
+
+            $this->finalizarJob($job, $count);
+            $this->info("Importados {$count} políticos (presidente e vice).");
+
+            return self::SUCCESS;
+        } catch (\Throwable $e) {
+            $this->falharJob($job, $e);
+
+            return self::FAILURE;
+        }
+    }
+
+    private function importarDeclaracoesBens(int $anoEleitoral): int
+    {
+        $this->info("Importando declarações de bens TSE (eleições {$anoEleitoral})...");
+
+        $job = $this->criarJob('declaracoes_bens_tse');
+
+        try {
+            $tempDir = storage_path('app/tse_temp');
+
+            $this->info('  Baixando dados do TSE...');
+            $zipPath = $this->tse->downloadCandidatosCsv($anoEleitoral, $tempDir);
+
+            if (! $zipPath || ! file_exists($zipPath)) {
+                $this->error('Falha ao baixar dados do TSE.');
+
+                return self::FAILURE;
+            }
+
+            $this->info('  Extraindo CSVs de bens...');
+            $csvPaths = $this->tse->extractBensCsvs($zipPath);
+
+            if (empty($csvPaths)) {
+                $this->warn('  Nenhum CSV de bens encontrado no ZIP. Tentando extrair todos os CSVs...');
+
+                $extractDir = dirname($zipPath).'/extracted_'.basename($zipPath, '.zip');
+                $allCsvs = glob($extractDir.'/*.csv');
+                $csvPaths = array_filter($allCsvs, fn ($f) => str_contains(basename($f), 'bens'));
+            }
+
+            if (empty($csvPaths)) {
+                $this->error('Dados de bens não disponíveis neste arquivo TSE.');
+
+                return self::FAILURE;
+            }
+
+            $this->info('  '.count($csvPaths).' CSVs de bens encontrados.');
+
+            $politiciansByName = Politician::select('id', 'name')
+                ->pluck('name', 'id')
+                ->mapWithKeys(fn ($name, $id) => [mb_strtolower($name) => $id]);
+
+            $count = 0;
+
+            foreach ($csvPaths as $csvPath) {
+                $basename = basename($csvPath);
+                $this->info("  Processando {$basename}...");
+
+                $this->tse->streamCsv($csvPath, function (array $data) use (&$count, $politiciansByName, $anoEleitoral) {
+                    $nome = mb_strtolower(trim($data['NM_CANDIDATO'] ?? $data['nome_candidato'] ?? ''));
+
+                    if (! $nome) {
+                        return;
+                    }
+
+                    $politicianId = $politiciansByName->get($nome);
+
+                    if (! $politicianId) {
+                        return;
+                    }
+
+                    $tipo = $data['DS_BEM_CANDIDATO'] ?? $data['tipo_bem'] ?? '';
+                    $descricao = $data['DETALHAMENTO_BEM'] ?? $data['descricao_bem'] ?? '';
+                    $valor = (float) ($data['VR_BEM_CANDIDATO'] ?? $data['valor_bem'] ?? 0);
+
+                    if ($tipo === '' && $descricao === '') {
+                        return;
+                    }
+
+                    AssetDeclaration::updateOrCreate(
+                        [
+                            'politician_id' => $politicianId,
+                            'year' => $anoEleitoral,
+                            'type' => mb_substr($tipo, 0, 500),
+                            'description' => mb_substr($descricao, 0, 500),
+                        ],
+                        [
+                            'value' => $valor > 0 ? $valor : null,
+                        ]
+                    );
+
+                    $count++;
+
+                    if ($count % 5000 === 0) {
+                        $this->info("    Processados {$count} registros...");
+                    }
+                });
+            }
+
+            $this->finalizarJob($job, $count);
+            $this->info("Importadas {$count} declarações de bens.");
+
+            return self::SUCCESS;
+        } catch (\Throwable $e) {
+            $this->falharJob($job, $e);
+
+            return self::FAILURE;
+        }
+    }
+
+    private function importarProcessosJudiciais(): int
+    {
+        $this->info('Importando processos judiciais de senadores...');
+
+        $job = $this->criarJob('processos_judiciais_senado');
+
+        try {
+            $senadores = Politician::where('external_id', 'LIKE', 'senado_%')
+                ->select('id', 'external_id', 'name')
+                ->get();
+
+            if ($senadores->isEmpty()) {
+                $this->warn('Nenhum senador encontrado. Execute primeiro: importar-dados senadores');
+
+                return self::FAILURE;
+            }
+
+            $count = 0;
+
+            foreach ($senadores as $senador) {
+                $codigo = (int) str_replace('senado_', '', $senador->external_id);
+
+                $response = $this->senado->getJson("senador/{$codigo}/processos");
+
+                if (! $response) {
+                    continue;
+                }
+
+                $processos = $response['Listaprocessos']['Processos']['Processo'] ?? [];
+                $processos = is_array($processos) && isset($processos['@attributes']) ? [$processos] : $processos;
+
+                if (! is_array($processos)) {
+                    continue;
+                }
+
+                foreach ($processos as $processo) {
+                    $attrs = $processo['@attributes'] ?? $processo;
+
+                    $numero = $attrs['numeroProcesso'] ?? $attrs['NumeroProcesso'] ?? '';
+                    $descricao = $processo['Descricao'] ?? $processo['descricao'] ?? '';
+                    $situacao = $processo['Situacao'] ?? $processo['situacao'] ?? '';
+
+                    if ($numero === '') {
+                        continue;
+                    }
+
+                    LegalProceeding::updateOrCreate(
+                        [
+                            'politician_id' => $senador->id,
+                            'case_number' => mb_substr($numero, 0, 50),
+                        ],
+                        [
+                            'court' => 'Senado Federal',
+                            'status' => mb_substr($situacao, 0, 50),
+                            'description' => mb_substr($descricao, 0, 500) ?: null,
+                            'source_url' => "https://legis.senado.leg.br/dadosabertos/senador/{$codigo}/processos",
+                        ]
+                    );
+
+                    $count++;
+                }
+
+                usleep(200000);
+            }
+
+            $this->finalizarJob($job, $count);
+            $this->info("Importados {$count} processos judiciais.");
 
             return self::SUCCESS;
         } catch (\Throwable $e) {

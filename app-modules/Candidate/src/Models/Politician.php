@@ -51,12 +51,14 @@ class Politician extends Model
         'social_media',
         'defends',
         'trendings',
+        'trending_order',
         'active_processes',
     ];
 
     protected $casts = [
         'birth_date' => 'date',
         'social_media' => 'array',
+        'trending_order' => 'integer',
         'active_processes' => 'integer',
     ];
 

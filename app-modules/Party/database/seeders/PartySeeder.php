@@ -24,7 +24,7 @@ class PartySeeder extends Seeder
             ['name' => 'Partido Verde', 'acronym' => 'PV', 'number' => 43],
             ['name' => 'Partido Socialismo e Liberdade', 'acronym' => 'PSOL', 'number' => 50],
             ['name' => 'Partido Democrático Trabalhista', 'acronym' => 'PDT', 'number' => 12],
-            ['name' => 'Solidariedade', 'acronym' => 'SOLIDARIEDADE', 'number' => 40],
+            ['name' => 'Solidariedade', 'acronym' => 'SOLIDARIEDADE', 'number' => 23],
             ['name' => 'Partido Novo', 'acronym' => 'NOVO', 'number' => 30],
             ['name' => 'Partido Republicano da Ordem Social', 'acronym' => 'PROS', 'number' => 90],
             ['name' => 'Partido Comunista Brasileiro', 'acronym' => 'PCdoB', 'number' => 65],

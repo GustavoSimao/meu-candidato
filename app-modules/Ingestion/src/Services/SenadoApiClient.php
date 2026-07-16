@@ -2,53 +2,21 @@
 
 namespace MeuCandidato\Ingestion\Services;
 
-use Illuminate\Http\Client\ConnectionException;
-use Illuminate\Http\Client\Response;
-use Illuminate\Support\Facades\Http;
-use Illuminate\Support\Facades\Log;
+use MeuCandidato\Ingestion\Support\WithRetry;
 
 class SenadoApiClient
 {
+    use WithRetry;
+
     private const BASE_URL = 'https://legis.senado.leg.br/dadosabertos';
 
     private const MAX_RETRIES = 3;
 
     private const RETRY_DELAY_MS = 1000;
 
-    private function requestWithRetry(string $method, string $url, array $options = []): ?Response
+    protected function retryHeaders(): array
     {
-        $attempts = 0;
-
-        while ($attempts < self::MAX_RETRIES) {
-            try {
-                $response = Http::timeout(60)
-                    ->withHeaders(['Accept' => 'application/json'])
-                    ->$method($url, $options);
-
-                if ($response->successful()) {
-                    return $response;
-                }
-
-                if ($response->status() === 429) {
-                    $attempts++;
-                    usleep(self::RETRY_DELAY_MS * 1000 * $attempts);
-
-                    continue;
-                }
-
-                return $response;
-            } catch (ConnectionException $e) {
-                $attempts++;
-
-                if ($attempts >= self::MAX_RETRIES) {
-                    throw $e;
-                }
-
-                usleep(self::RETRY_DELAY_MS * 1000 * $attempts);
-            }
-        }
-
-        return null;
+        return ['Accept' => 'application/json'];
     }
 
     private function normalizeToArray(mixed $data): array
@@ -75,6 +43,17 @@ class SenadoApiClient
         $data = $response->json('ListaParlamentarEmExercicio.Parlamentares.Parlamentar');
 
         return $this->normalizeToArray($data);
+    }
+
+    public function getJson(string $path): ?array
+    {
+        $response = $this->requestWithRetry('get', self::BASE_URL.'/'.$path);
+
+        if ($response === null || $response->failed()) {
+            return null;
+        }
+
+        return $response->json();
     }
 
     public function getSenadoresPorLegislatura(int $legislatura): array

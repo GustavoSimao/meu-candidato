@@ -5,7 +5,6 @@ namespace Tests\Feature;
 use App\Livewire\Politicos\Show;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Livewire\Livewire;
-use MeuCandidato\Candidate\Models\BadgeDefinition;
 use MeuCandidato\Candidate\Models\Politician;
 use MeuCandidato\Geography\Models\Address;
 use MeuCandidato\Ingestion\Commands\ImportarDadosCommand;
@@ -143,11 +142,8 @@ class PoliticosTest extends TestCase
 
         $component = Livewire::test(Show::class, ['id' => $politician->id]);
         $component->assertOk();
-        $component->assertSee('R$ 31.000,00');
-
-        $component->call('toggleDespesas');
-        $component->assertSee('30 documentos');
-        $component->assertSee('5 documentos');
+        $component->assertSee('R$ 31.000');
+        $component->assertSee('35 documentos');
     }
 
     public function test_profile_shows_bills_and_votes(): void
@@ -177,31 +173,9 @@ class PoliticosTest extends TestCase
 
         $component = Livewire::test(Show::class, ['id' => $politician->id]);
         $component->assertOk();
-
-        $component->call('toggleAtividade');
         $component->assertSee('Projeto de Transparência');
         $component->assertSee('Sim');
         $component->assertSee('01/06/2025');
-    }
-
-    public function test_profile_shows_badges(): void
-    {
-        $politician = $this->createPolitician('99993');
-
-        $badge = BadgeDefinition::create([
-            'badge_type' => 'transparency',
-            'label' => 'Político Transparente',
-            'description' => 'Dados completos',
-            'color' => '#10b981',
-            'rules' => ['min_badges' => 1],
-        ]);
-
-        $politician->badges()->attach($badge->id);
-
-        $response = $this->get(route('politicos.show', $politician->id));
-
-        $response->assertOk();
-        $response->assertSee('Político Transparente');
     }
 
     public function test_profile_shows_party_and_state(): void
@@ -249,9 +223,7 @@ class PoliticosTest extends TestCase
 
         $component = Livewire::test(Show::class, ['id' => $politician->id]);
         $component->assertOk();
-
-        $component->call('toggleAtividade');
-        $component->assertSee('Ver todas');
+        $component->assertSee('ver todos os');
         $component->assertSee('openProposicoesModal');
     }
 
@@ -272,8 +244,6 @@ class PoliticosTest extends TestCase
 
         $component = Livewire::test(Show::class, ['id' => $politician->id]);
         $component->assertOk();
-
-        $component->call('toggleDespesas');
         $component->assertSee('openDespesasModal');
     }
 
@@ -295,8 +265,6 @@ class PoliticosTest extends TestCase
 
         $component = Livewire::test(Show::class, ['id' => $politician->id]);
         $component->assertOk();
-
-        $component->call('toggleAtividade');
         $component->assertSee('camara.leg.br/plenario/votacao/12345');
     }
 

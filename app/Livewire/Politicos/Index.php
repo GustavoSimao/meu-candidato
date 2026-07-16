@@ -4,6 +4,7 @@ namespace App\Livewire\Politicos;
 
 use App\Support\CaseInsensitiveSearch;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
+use Illuminate\Support\Collection;
 use Livewire\Attributes\Computed;
 use Livewire\Attributes\Title;
 use Livewire\Component;
@@ -20,11 +21,21 @@ class Index extends Component
 
     public string $search = '';
 
-    public array $selectedPositions = [];
+    public string $selectedPosition = '';
 
-    public array $selectedParties = [];
+    public string $selectedParty = '';
 
     public string $selectedState = '';
+
+    public string $activeTab = 'eleitos';
+
+    public function trending(): Collection
+    {
+        return Politician::with(['party', 'latestAddress'])
+            ->whereNotNull('trending_order')
+            ->orderBy('trending_order')
+            ->get();
+    }
 
     #[Computed]
     public function positions(): array
@@ -72,13 +83,44 @@ class Index extends Component
             $query = $this->whereCaseInsensitive($query, 'name', "%{$this->search}%");
         }
 
-        if ($this->selectedPositions !== []) {
-            $query->whereIn('position', $this->selectedPositions);
+        if ($this->selectedPosition !== '') {
+            $query->where('position', $this->selectedPosition);
         }
 
-        if ($this->selectedParties !== []) {
+        if ($this->selectedParty !== '') {
             $query->whereHas('party', function ($q) {
-                $q->whereIn('acronym', $this->selectedParties);
+                $q->where('acronym', $this->selectedParty);
+            });
+        }
+
+        if ($this->selectedState !== '') {
+            $query->whereHas('address', function ($q) {
+                $q->where('uf', $this->selectedState);
+            });
+        }
+
+        return $query->orderBy('name')->paginate(12);
+    }
+
+    public function filteredCandidates(): LengthAwarePaginator
+    {
+        $query = Politician::with(['party', 'mandates', 'latestAddress'])
+            ->whereNotNull('external_id')
+            ->whereDoesntHave('mandates', function ($q) {
+                $q->whereNull('ended_at')->orWhere('ended_at', '>=', now());
+            });
+
+        if ($this->search !== '') {
+            $query = $this->whereCaseInsensitive($query, 'name', "%{$this->search}%");
+        }
+
+        if ($this->selectedPosition !== '') {
+            $query->where('position', $this->selectedPosition);
+        }
+
+        if ($this->selectedParty !== '') {
+            $query->whereHas('party', function ($q) {
+                $q->where('acronym', $this->selectedParty);
             });
         }
 
@@ -95,44 +137,31 @@ class Index extends Component
     public function hasFilters(): bool
     {
         return $this->search !== ''
-            || $this->selectedPositions !== []
-            || $this->selectedParties !== []
+            || $this->selectedPosition !== ''
+            || $this->selectedParty !== ''
             || $this->selectedState !== '';
+    }
+
+    public function toggleTab(string $tab): void
+    {
+        $this->activeTab = $tab;
+        $this->resetPage();
     }
 
     public function clearFilters(): void
     {
         $this->search = '';
-        $this->selectedPositions = [];
-        $this->selectedParties = [];
+        $this->selectedPosition = '';
+        $this->selectedParty = '';
         $this->selectedState = '';
-        $this->resetPage();
-    }
-
-    public function togglePosition(string $position): void
-    {
-        if (in_array($position, $this->selectedPositions)) {
-            $this->selectedPositions = array_values(array_diff($this->selectedPositions, [$position]));
-        } else {
-            $this->selectedPositions[] = $position;
-        }
-        $this->resetPage();
-    }
-
-    public function toggleParty(string $party): void
-    {
-        if (in_array($party, $this->selectedParties)) {
-            $this->selectedParties = array_values(array_diff($this->selectedParties, [$party]));
-        } else {
-            $this->selectedParties[] = $party;
-        }
         $this->resetPage();
     }
 
     public function render()
     {
         return view('livewire.politicos.index', [
-            'politicians' => $this->filtered(),
+            'politicians' => $this->activeTab === 'candidatos' ? $this->filteredCandidates() : $this->filtered(),
+            'trending' => $this->trending(),
         ])->layout('layouts.guest');
     }
 }

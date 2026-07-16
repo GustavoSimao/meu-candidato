@@ -3,7 +3,7 @@
     <head>
         @include('partials.head')
     </head>
-    <body class="min-h-screen bg-white antialiased">
+    <body class="min-h-screen antialiased" style="background:var(--paper);color:var(--ink);font-family:'Inter',sans-serif;">
         <nav class="border-b border-zinc-200">
             <div class="max-w-5xl mx-auto px-4 py-4 flex items-center justify-between">
                 <a href="{{ route('home') }}" class="text-lg font-bold tracking-tight" wire:navigate>Meu Candidato</a>

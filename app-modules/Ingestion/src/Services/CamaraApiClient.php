@@ -2,13 +2,12 @@
 
 namespace MeuCandidato\Ingestion\Services;
 
-use Illuminate\Http\Client\ConnectionException;
-use Illuminate\Http\Client\Response;
-use Illuminate\Support\Facades\Http;
-use Illuminate\Support\Facades\Log;
+use MeuCandidato\Ingestion\Support\WithRetry;
 
 class CamaraApiClient
 {
+    use WithRetry;
+
     private const BASE_URL = 'https://dadosabertos.camara.leg.br/api/v2';
 
     private const ARQUIVOS_URL = 'https://dadosabertos.camara.leg.br/arquivos';
@@ -16,40 +15,6 @@ class CamaraApiClient
     private const MAX_RETRIES = 3;
 
     private const RETRY_DELAY_MS = 1000;
-
-    private function requestWithRetry(string $method, string $url, array $options = []): ?Response
-    {
-        $attempts = 0;
-
-        while ($attempts < self::MAX_RETRIES) {
-            try {
-                $response = Http::timeout(60)->$method($url, $options);
-
-                if ($response->successful()) {
-                    return $response;
-                }
-
-                if ($response->status() === 429) {
-                    $attempts++;
-                    usleep(self::RETRY_DELAY_MS * 1000 * $attempts);
-
-                    continue;
-                }
-
-                return $response;
-            } catch (ConnectionException $e) {
-                $attempts++;
-
-                if ($attempts >= self::MAX_RETRIES) {
-                    throw $e;
-                }
-
-                usleep(self::RETRY_DELAY_MS * 1000 * $attempts);
-            }
-        }
-
-        return null;
-    }
 
     public function getDeputados(int $pagina = 1, int $itensPorPagina = 100): array
     {
@@ -289,7 +254,7 @@ class CamaraApiClient
             return;
         }
 
-        $state = '寻找 dados';
+        $state = 'seeking';
         $braceDepth = 0;
         $objectBuffer = '';
         $inString = false;
@@ -301,18 +266,18 @@ class CamaraApiClient
             for ($i = 0; $i < $len; $i++) {
                 $char = $line[$i];
 
-                if ($state === '寻找 dados') {
+                if ($state === 'seeking') {
                     if ($char === '"' && substr($line, $i, 7) === '"dados"') {
-                        $state = '在 dados 中';
+                        $state = 'in_data';
                         $i += 6;
                     }
 
                     continue;
                 }
 
-                if ($state === '在 dados 中') {
+                if ($state === 'in_data') {
                     if ($char === '{') {
-                        $state = '在对象中';
+                        $state = 'in_object';
                         $objectBuffer = '{';
                         $braceDepth = 1;
                     }
@@ -320,7 +285,7 @@ class CamaraApiClient
                     continue;
                 }
 
-                if ($state === '在对象中') {
+                if ($state === 'in_object') {
                     if ($escaped) {
                         $escaped = false;
                         $objectBuffer .= $char;
@@ -354,7 +319,7 @@ class CamaraApiClient
                                 if (is_array($obj)) {
                                     $callback($obj);
                                 }
-                                $state = '在 dados 中';
+                                $state = 'in_data';
                                 $objectBuffer = '';
                                 $inString = false;
                             }

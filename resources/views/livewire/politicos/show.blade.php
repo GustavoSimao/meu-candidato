@@ -11,629 +11,432 @@
 @livewire('politicos.ver-coautores-modal', ['politicianId' => $this->politician['id']])
 @endif
 
-<section class="w-full max-w-4xl mx-auto py-8 px-4">
+<section style="min-height:100vh;padding:48px 20px 80px;">
     @if ($this->politician === null)
-        <div class="flex flex-col items-center justify-center py-24 text-center">
-            <flux:heading size="xl" level="1">Político não encontrado</flux:heading>
-            <flux:subheading size="lg">O ID informado não corresponde a nenhum político cadastrado.</flux:subheading>
-            <flux:button wire:navigate href="{{ route('politicos') }}" variant="primary" class="mt-6">
-                Voltar à lista
-            </flux:button>
+        <div class="mc-page-center" style="text-align:center;padding:96px 0;">
+            <h1 class="mc-h1">Político não encontrado</h1>
+            <p style="font-size:14px;color:var(--ink-soft);margin-top:8px;">O ID informado não corresponde a nenhum político cadastrado.</p>
+            <a href="{{ route('politicos') }}" style="display:inline-block;margin-top:24px;padding:8px 16px;background:var(--ink);color:white;border-radius:6px;text-decoration:none;font-size:13px;">Voltar à lista</a>
         </div>
     @else
-        @php $p = $this->politician; @endphp
+        @php $p = $this->politician; $cargo = $this->cargo; @endphp
 
-        {{-- BLOCO 1: IDENTIDADE --}}
-        <div class="flex items-start gap-5 mb-8">
-            <div class="w-24 h-24 rounded-xl overflow-hidden flex-shrink-0 bg-zinc-100">
-                @if ($p['photo'])
-                    <img
-                        src="{{ $p['photo'] }}"
-                        alt="{{ $p['name'] }}"
-                        class="w-full h-full object-cover"
-                        onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';"
-                    />
-                    <div class="w-full h-full flex items-center justify-center bg-zinc-200 text-zinc-500 text-2xl font-bold" style="display: none;">
-                        {{ strtoupper(mb_substr($p['name'], 0, 2)) }}
+        <div class="mc-page-center">
+
+            {{-- EYEBROW --}}
+            <p class="mc-eyebrow"><span class="mc-dot"></span>meu-candidato · perfil verificado</p>
+
+            {{-- HEADER --}}
+            <div class="mc-header">
+                <div class="mc-header-top">
+                    <div class="mc-avatar">
+                        @if ($p['photo'])
+                            <img src="{{ $p['photo'] }}" alt="{{ $p['name'] }}" onerror="this.style.display='none';this.nextElementSibling.style.display='flex';" />
+                            <div style="display:none;align-items:center;justify-content:center;width:100%;height:100%;">
+                                {{ strtoupper(mb_substr($p['nome_urna'] ?? $p['name'], 0, 2)) }}
+                            </div>
+                        @else
+                            {{ strtoupper(mb_substr($p['nome_urna'] ?? $p['name'], 0, 2)) }}
+                        @endif
                     </div>
-                @else
-                    <div class="w-full h-full flex items-center justify-center bg-zinc-200 text-zinc-500 text-2xl font-bold">
-                        {{ strtoupper(mb_substr($p['name'], 0, 2)) }}
+                    <div style="flex:1;min-width:0;">
+                        <div class="mc-name-row">
+                            <h1 class="mc-h1">{{ $p['nome_urna'] ?? $p['name'] }}</h1>
+                        </div>
+                        @if ($p['nome_urna'] && $p['nome_urna'] !== $p['name'])
+                            <p class="mc-civil-name">Nome civil: {{ $p['name'] }}</p>
+                        @endif
+                        <p class="mc-meta-line">
+                            <b>{{ $p['party'] }}</b> · <b>{{ $cargo === 'presidente' || $cargo === 'vice' ? 'Brasil' : $p['state'] }}</b> · {{ $p['position'] }} · em exercício · mandato {{ $p['mandate_period'] ?? '—' }}
+                        </p>
                     </div>
-                @endif
-            </div>
-            <div class="flex-1 min-w-0">
-                <flux:heading size="xl" level="1">
-                    {{ $p['nome_urna'] ?? $p['name'] }}
-                </flux:heading>
-                @if ($p['nome_urna'] && $p['nome_urna'] !== $p['name'])
-                    <p class="text-xs text-zinc-400 mt-0.5">Nome civil: {{ $p['name'] }}</p>
-                @endif
-                <p class="text-sm text-zinc-500 mt-1 font-mono">
-                    {{ $p['party'] }} — {{ $p['state'] }} · {{ $p['position'] }}
-                </p>
-                <p class="text-xs text-zinc-400 mt-0.5">
-                    Situação: <span class="font-medium text-zinc-600">Em exercício</span>
-                    · Mandato: 2023–2026
+                </div>
+
+                <p class="mc-mandate-line">
+                    <span class="mc-icon">→</span>{{ $p['mandate_description'] }}
                 </p>
 
-                {{-- Redes sociais --}}
-                <div class="flex items-center gap-3 mt-2 flex-wrap">
-                    @if ($p['email'])
-                        <a href="mailto:{{ $p['email'] }}" class="text-xs text-zinc-400 hover:text-zinc-600 flex items-center gap-1" title="{{ $p['email'] }}">
-                            <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"/></svg>
-                            Email
-                        </a>
+                <div class="mc-social-row">
+                    @if ($p['social_media_twitter'])
+                        <a href="{{ $p['social_media_twitter'] }}" target="_blank" rel="noopener" style="text-decoration:none;color:inherit;">𝕏 seguir</a>
                     @endif
-                    @foreach ($p['social_media'] as $social)
-                        @if ($social['platform'] === 'twitter')
-                            <a href="{{ $social['url'] }}" target="_blank" rel="noopener" class="text-xs text-zinc-400 hover:text-zinc-600 flex items-center gap-1">
-                                <svg class="w-3.5 h-3.5" fill="currentColor" viewBox="0 0 24 24"><path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"/></svg>
-                                X
-                            </a>
-                        @endif
-                        @if ($social['platform'] === 'facebook')
-                            <a href="{{ $social['url'] }}" target="_blank" rel="noopener" class="text-xs text-zinc-400 hover:text-zinc-600 flex items-center gap-1">
-                                <svg class="w-3.5 h-3.5" fill="currentColor" viewBox="0 0 24 24"><path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z"/></svg>
-                                Facebook
-                            </a>
-                        @endif
-                        @if ($social['platform'] === 'instagram')
-                            <a href="{{ $social['url'] }}" target="_blank" rel="noopener" class="text-xs text-zinc-400 hover:text-zinc-600 flex items-center gap-1">
-                                <svg class="w-3.5 h-3.5" fill="currentColor" viewBox="0 0 24 24"><path d="M12 2.163c3.204 0 3.584.012 4.85.07 3.252.148 4.771 1.691 4.919 4.919.058 1.265.069 1.645.069 4.849 0 3.205-.012 3.584-.069 4.849-.149 3.225-1.664 4.771-4.919 4.919-1.266.058-1.644.07-4.85.07-3.204 0-3.584-.012-4.849-.07-3.26-.149-4.771-1.699-4.919-4.92-.058-1.265-.07-1.644-.07-4.849 0-3.204.013-3.583.07-4.849.149-3.227 1.664-4.771 4.919-4.919 1.266-.057 1.645-.069 4.849-.069zM12 0C8.741 0 8.333.014 7.053.072 2.695.272.273 2.69.073 7.052.014 8.333 0 8.741 0 12c0 3.259.014 3.668.072 4.948.2 4.358 2.618 6.78 6.98 6.98C8.333 23.986 8.741 24 12 24c3.259 0 3.668-.014 4.948-.072 4.354-.2 6.782-2.618 6.979-6.98.059-1.28.073-1.689.073-4.948 0-3.259-.014-3.667-.072-4.947-.196-4.354-2.617-6.78-6.979-6.98C15.668.014 15.259 0 12 0zm0 5.838a6.162 6.162 0 100 12.324 6.162 6.162 0 000-12.324zM12 16a4 4 0 110-8 4 4 0 010 8zm6.406-11.845a1.44 1.44 0 100 2.881 1.44 1.44 0 000-2.881z"/></svg>
-                                Instagram
-                            </a>
-                        @endif
-                        @if ($social['platform'] === 'tiktok')
-                            <a href="{{ $social['url'] }}" target="_blank" rel="noopener" class="text-xs text-zinc-400 hover:text-zinc-600 flex items-center gap-1">
-                                <svg class="w-3.5 h-3.5" fill="currentColor" viewBox="0 0 24 24"><path d="M12.525.02c1.31-.02 2.61-.01 3.91-.02.08 1.53.63 3.09 1.75 4.17 1.12 1.11 2.7 1.62 4.24 1.79v4.03c-1.44-.05-2.89-.35-4.2-.97-.57-.26-1.1-.59-1.62-.93-.01 2.92.01 5.84-.02 8.75-.08 1.4-.54 2.79-1.35 3.94-1.31 1.92-3.58 3.17-5.91 3.21-1.43.08-2.86-.31-4.08-1.03-2.02-1.19-3.44-3.37-3.65-5.71-.02-.5-.03-1-.01-1.49.18-1.9 1.12-3.72 2.58-4.96 1.66-1.44 3.98-2.13 6.15-1.72.02 1.48-.04 2.96-.04 4.44-.99-.32-2.15-.23-3.02.37-.63.41-1.11 1.04-1.36 1.75-.21.51-.15 1.07-.14 1.61.24 1.64 1.82 3.02 3.5 2.87 1.12-.01 2.19-.66 2.77-1.61.19-.33.4-.67.41-1.06.1-1.79.06-3.57.07-5.36.01-4.03-.01-8.05.02-12.07z"/></svg>
-                                TikTok
-                            </a>
-                        @endif
-                        @if ($social['platform'] === 'youtube')
-                            <a href="{{ $social['url'] }}" target="_blank" rel="noopener" class="text-xs text-zinc-400 hover:text-zinc-600 flex items-center gap-1">
-                                <svg class="w-3.5 h-3.5" fill="currentColor" viewBox="0 0 24 24"><path d="M23.498 6.186a3.016 3.016 0 00-2.122-2.136C19.505 3.545 12 3.545 12 3.545s-7.505 0-9.377.505A3.017 3.017 0 00.502 6.186C0 8.07 0 12 0 12s0 3.93.502 5.814a3.016 3.016 0 002.122 2.136c1.871.505 9.376.505 9.376.505s7.505 0 9.377-.505a3.015 3.015 0 002.122-2.136C24 15.93 24 12 24 12s0-3.93-.502-5.814zM9.545 15.568V8.432L15.818 12l-6.273 3.568z"/></svg>
-                                YouTube
-                            </a>
-                        @endif
-                    @endforeach
+                    @if ($p['social_media_instagram'])
+                        <a href="{{ $p['social_media_instagram'] }}" target="_blank" rel="noopener" style="text-decoration:none;color:inherit;">◎ instagram</a>
+                    @endif
+                    <span class="mc-follow">{{ number_format($this->followersCount) }} seguidores</span>
                 </div>
             </div>
-            <div class="flex items-center gap-3 flex-shrink-0">
-                <span class="text-xs text-zinc-500">{{ $this->followersCount }} seguidores</span>
-                <button
-                    wire:click="toggleFollow"
-                    wire:loading.attr="disabled"
-                    class="inline-flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium rounded-lg border transition
-                        {{ $this->isFollowing
-                            ? 'bg-red-50 border-red-200 text-red-700 hover:bg-red-100'
-                            : 'bg-blue-50 border-blue-200 text-blue-700 hover:bg-blue-100' }}"
-                >
-                    @if ($this->isFollowing)
-                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg>
-                        Seguindo
-                    @else
-                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>
-                        Seguir
-                    @endif
-                </button>
-            </div>
-        </div>
 
-        {{-- BLOCO 2: LEITURA RÁPIDA --}}
-        <div class="grid grid-cols-2 sm:grid-cols-3 gap-3 mb-8">
-            <div class="bg-zinc-50 rounded-lg p-3 text-center">
-                <p class="text-2xl font-bold text-zinc-900">{{ $p['bills_count'] }}</p>
-                <p class="text-xs text-zinc-500 mt-0.5">Projetos apresentados</p>
-            </div>
-            <div class="bg-zinc-50 rounded-lg p-3 text-center">
-                <p class="text-2xl font-bold text-zinc-900">{{ $p['votes_count'] }}</p>
-                <p class="text-xs text-zinc-500 mt-0.5">Votos registrados</p>
-            </div>
-            <div class="bg-zinc-50 rounded-lg p-3 text-center">
-                <p class="text-2xl font-bold text-zinc-900">
-                    @if ($p['total_expenses'] > 0)
-                        R$ {{ number_format($p['total_expenses'] / 1000, 0, ',', '.') }}k
-                    @else
-                        —
-                    @endif
-                </p>
-                <p class="text-xs text-zinc-500 mt-0.5">Gastos CEAP</p>
-            </div>
-            <div class="bg-zinc-50 rounded-lg p-3 text-center">
-                <p class="text-2xl font-bold text-zinc-900">
-                    @if ($p['votes_count'] > 0)
-                        {{ $p['votes_count'] }}
-                    @else
-                        —
-                    @endif
-                </p>
-                <p class="text-xs text-zinc-500 mt-0.5">Votos registrados</p>
-            </div>
-            <div class="bg-zinc-50 rounded-lg p-3 text-center">
-                <p class="text-2xl font-bold text-zinc-900">{{ $p['committees_count'] }}</p>
-                <p class="text-xs text-zinc-500 mt-0.5">Comissões</p>
-            </div>
-            <div class="bg-zinc-50 rounded-lg p-3 text-center">
-                <p class="text-2xl font-bold text-zinc-900">{{ $p['badges_count'] }}</p>
-                <p class="text-xs text-zinc-500 mt-0.5">Badges</p>
-            </div>
-        </div>
-
-        {{-- BLOCO 3: BADGES --}}
-        @if (count($p['badges']) > 0)
-            <div class="mb-8">
-                <div class="flex flex-wrap gap-2">
-                    @foreach ($p['badges'] as $badge)
-                        <div
-                            class="inline-flex items-center gap-1.5 text-xs font-medium px-2.5 py-1 rounded-full cursor-pointer hover:opacity-80 transition"
-                            style="background-color: {{ $badge['color'] ? $badge['color'] . '20' : '#ecfdf5' }}; color: {{ $badge['color'] ?? '#047857' }}"
-                            title="{{ $badge['description'] ?? $badge['name'] }}"
-                        >
-                            {{ $badge['name'] }}
-                            <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"/></svg>
-                        </div>
-                    @endforeach
-                </div>
-            </div>
-        @endif
-
-        {{-- BLOCO 4: TRAJETÓRIA --}}
-        @if (count($p['mandates']) > 0)
-            <div class="mb-4 border border-zinc-200 rounded-lg overflow-hidden">
-                <button wire:click="toggleTrajetoria" class="w-full flex items-center justify-between px-4 py-3 bg-white hover:bg-zinc-50 transition">
-                    <span class="text-sm font-semibold text-zinc-900">Trajetória</span>
-                    <svg class="w-4 h-4 text-zinc-500 transition-transform {{ $this->showTrajetoria ? 'rotate-180' : '' }}" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>
-                </button>
-                @if ($this->showTrajetoria)
-                    <div class="px-4 pb-4 border-t border-zinc-100">
-                        <div class="mt-3 space-y-3">
-                            @foreach ($p['mandates'] as $mandate)
-                                <div class="flex items-start gap-3">
-                                    <div class="w-2 h-2 rounded-full bg-emerald-500 mt-1.5 flex-shrink-0"></div>
-                                    <div>
-                                        <p class="text-sm text-zinc-900 font-medium">{{ $mandate['position'] }}</p>
-                                        <p class="text-xs text-zinc-500">
-                                            {{ $mandate['started_at'] }} — {{ $mandate['ended_at'] ?? 'Em exercício' }}
-                                        </p>
-                                        @if ($mandate['salary'])
-                                            <p class="text-xs text-zinc-400 mt-0.5">
-                                                Salário: R$ {{ number_format($mandate['salary'], 2, ',', '.') }}
-                                            </p>
-                                        @endif
-                                    </div>
-                                </div>
-                            @endforeach
-                        </div>
-                        <p class="text-[10px] text-zinc-400 mt-3">Fonte: Câmara dos Deputados / Senado Federal</p>
-                    </div>
-                @endif
-            </div>
-        @endif
-
-        {{-- BLOCO 5: ATIVIDADE LEGISLATIVA --}}
-        <div class="mb-4 border border-zinc-200 rounded-lg overflow-hidden">
-            <button wire:click="toggleAtividade" class="w-full flex items-center justify-between px-4 py-3 bg-white hover:bg-zinc-50 transition">
-                <span class="text-sm font-semibold text-zinc-900">Atividade Legislativa</span>
-                <svg class="w-4 h-4 text-zinc-500 transition-transform {{ $this->showAtividade ? 'rotate-180' : '' }}" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>
-            </button>
-            @if ($this->showAtividade)
-                <div class="px-4 pb-4 border-t border-zinc-100">
-                    {{-- Proposições --}}
-                    <div class="mt-3">
-                        <div class="flex items-center gap-1.5 mb-2">
-                            <p class="text-xs font-medium text-zinc-500 uppercase">Proposições</p>
-                            <div class="relative group" x-data="{ open: false }">
-                                <button @click="open = !open" @mouseenter="open = true" @mouseleave="open = false" class="w-4 h-4 rounded-full bg-zinc-200 text-zinc-500 text-[10px] font-bold flex items-center justify-center hover:bg-zinc-300 transition">?</button>
-                                <div x-show="open" x-transition:enter="transition ease-out duration-100" x-transition:enter-start="opacity-0 scale-95" x-transition:enter-end="opacity-100 scale-100" x-transition:leave="transition ease-in duration-75" x-transition:leave-start="opacity-100 scale-100" x-transition:leave-end="opacity-0 scale-95" class="absolute left-0 top-6 z-50 w-64 p-3 bg-zinc-900 text-white text-xs rounded-lg shadow-lg" @click.away="open = false">
-                                    <p class="font-medium mb-1">O que são proposições?</p>
-                                    <p class="text-zinc-300">Projetos de lei, emendas, resoluções e outras matérias apresentadas por parlamentares. Inclui projetos de autoria própria e coautoria (quando o político assina junto com outros parlamentares).</p>
-                                    <div class="absolute -top-1 left-3 w-2 h-2 bg-zinc-900 rotate-45"></div>
-                                </div>
-                            </div>
-                        </div>
-                        @if ($p['last_bill_year'])
-                            <p class="text-[11px] text-zinc-400 mb-2">Última proposição: {{ $p['last_bill_year'] }}</p>
-                        @endif
-                        @if (count($p['bills']) > 0)
-                            <div class="space-y-2">
-                                @foreach ($p['bills'] as $bill)
-                                    <a href="https://www.camara.leg.br/proposicoesWeb/fichadetramitacao?idProposicao={{ $bill['external_id'] }}" target="_blank" rel="noopener" class="block bg-white border border-zinc-200 rounded-lg px-3 py-2 hover:bg-zinc-50 transition">
-                                        <div class="flex items-start justify-between gap-2">
-                                            <div class="min-w-0">
-                                                <p class="text-sm text-zinc-900 line-clamp-1">{{ $bill['title'] }}</p>
-                                                @if ($bill['latest_progress'])
-                                                    <p class="text-[11px] text-zinc-400 mt-0.5">{{ $bill['latest_progress'] }}</p>
-                                                @endif
-                                            </div>
-                                            <span class="text-xs bg-zinc-100 text-zinc-600 px-2 py-0.5 rounded-full flex-shrink-0">{{ $bill['year'] }}</span>
-                                        </div>
-                                    </a>
-                                @endforeach
-                            </div>
-                            @if ($p['bills_count'] > 3)
-                                <button wire:click="$dispatch('openProposicoesModal')" class="text-xs text-blue-600 hover:text-blue-800 font-medium mt-2">
-                                    Ver todas as proposições →
-                                </button>
-                            @endif
+            {{-- TCU CARD (presidente) --}}
+            @if ($cargo === 'presidente')
+                <div class="mc-tcu-card">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 2l8 4v6c0 5-3.5 8.5-8 10-4.5-1.5-8-5-8-10V6z"/><path d="M9 12l2 2 4-4"/></svg>
+                    <div>
+                        <p class="mc-tcu-label">Prestação de contas · TCU</p>
+                        @if ($p['tcu_parecer'])
+                            <p class="mc-tcu-value">{{ $p['tcu_parecer'] }}</p>
+                            <p class="mc-tcu-meta">Exercício {{ $p['tcu_ano'] }} · parecer emitido em {{ ($p['tcu_ano'] ?? 0) + 1 }}</p>
                         @else
-                            <p class="text-sm text-zinc-400">Nenhuma proposição encontrada.</p>
+                            <p class="mc-tcu-value" style="color:var(--ink-faint);">Não disponível</p>
+                            <p class="mc-tcu-meta">Dados do TCU ainda não importados</p>
                         @endif
                     </div>
-
-                    {{-- Votos --}}
-                    <div class="mt-4">
-                        <div class="flex items-center gap-1.5 mb-2">
-                            <p class="text-xs font-medium text-zinc-500 uppercase">Votos</p>
-                            <div class="relative group" x-data="{ open: false }">
-                                <button @click="open = !open" @mouseenter="open = true" @mouseleave="open = false" class="w-4 h-4 rounded-full bg-zinc-200 text-zinc-500 text-[10px] font-bold flex items-center justify-center hover:bg-zinc-300 transition">?</button>
-                                <div x-show="open" x-transition:enter="transition ease-out duration-100" x-transition:enter-start="opacity-0 scale-95" x-transition:enter-end="opacity-100 scale-100" x-transition:leave="transition ease-in duration-75" x-transition:leave-start="opacity-100 scale-100" x-transition:leave-end="opacity-0 scale-95" class="absolute left-0 top-6 z-50 w-64 p-3 bg-zinc-900 text-white text-xs rounded-lg shadow-lg" @click.away="open = false">
-                                    <p class="font-medium mb-1">O que são votos?</p>
-                                    <p class="text-zinc-300">Registros de como o político votou nas sessões plenárias. Cada voto é vinculado a uma proposição específica (projeto de lei, emenda, etc.) e pode ser Sim, Não, Abstenção ou Outros.</p>
-                                    <div class="absolute -top-1 left-3 w-2 h-2 bg-zinc-900 rotate-45"></div>
-                                </div>
-                            </div>
-                        </div>
-                        @if ($p['last_vote_date'])
-                            <p class="text-[11px] text-zinc-400 mb-2">Último voto registrado: {{ $p['last_vote_date'] }}</p>
-                        @endif
-                        @if (count($p['votes']) > 0)
-                            <div class="space-y-2">
-                                @foreach ($p['votes'] as $vote)
-                                    @php
-                                        $extId = $vote['session_external_id'] ?? '';
-                                        $votacaoId = explode('-', $extId)[0];
-                                        $camaraUrl = $votacaoId
-                                            ? "https://www.camara.leg.br/plenario/votacao/{$votacaoId}"
-                                            : '#';
-                                        $voteTitle = $vote['bill_title']
-                                            ?? preg_replace('/\s*Sim:\s*\?.*$/u', '', $vote['session_description'] ?? '')
-                                            ?? 'Votação';
-                                    @endphp
-                                    <a href="{{ $camaraUrl }}" target="_blank" rel="noopener" class="flex items-center gap-2 bg-white border border-zinc-200 rounded-lg px-3 py-2 hover:bg-zinc-50 transition">
-                                        <div class="w-2 h-2 rounded-full flex-shrink-0
-                                            {{ $vote['vote'] === 'Sim' ? 'bg-emerald-500' : ($vote['vote'] === 'Não' ? 'bg-red-500' : 'bg-zinc-400') }}">
-                                        </div>
-                                        <div class="flex-1 min-w-0">
-                                            <p class="text-sm text-zinc-900 line-clamp-1">{{ $voteTitle }}</p>
-                                            <p class="text-xs text-zinc-500">{{ $vote['date'] }}</p>
-                                        </div>
-                                        <span class="text-xs font-medium
-                                            {{ $vote['vote'] === 'Sim' ? 'text-emerald-600' : ($vote['vote'] === 'Não' ? 'text-red-600' : 'text-zinc-500') }}">
-                                            {{ $vote['vote'] }}
-                                        </span>
-                                    </a>
-                                @endforeach
-                            </div>
-                            @if ($p['votes_count'] > 3)
-                                <button wire:click="$dispatch('openVotacoesModal')" class="text-xs text-blue-600 hover:text-blue-800 font-medium mt-2">
-                                    Ver todos os votos →
-                                </button>
-                            @endif
-                        @else
-                            <p class="text-sm text-zinc-400">Nenhum voto registrado.</p>
-                        @endif
-                    </div>
-
-                    <p class="text-[10px] text-zinc-400 mt-3">Fonte: Câmara dos Deputados</p>
                 </div>
             @endif
-        </div>
 
-        {{-- BLOCO 6: DESPESAS --}}
-        @if ($p['total_expenses'] > 0)
-            <div class="mb-4 border border-zinc-200 rounded-lg overflow-hidden">
-                <button wire:click="toggleDespesas" class="w-full flex items-center justify-between px-4 py-3 bg-white hover:bg-zinc-50 transition">
-                    <span class="text-sm font-semibold text-zinc-900">
-                        Despesas (CEAP)
-                        <span class="text-zinc-400 font-normal">· R$ {{ number_format($p['total_expenses'], 2, ',', '.') }}</span>
-                    </span>
-                    <svg class="w-4 h-4 text-zinc-500 transition-transform {{ $this->showDespesas ? 'rotate-180' : '' }}" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>
-                </button>
-                @if ($this->showDespesas)
-                    <div class="px-4 pb-4 border-t border-zinc-100">
-                        <div class="mt-3 bg-gradient-to-r from-emerald-50 to-teal-50 border border-emerald-200 rounded-lg px-4 py-3">
-                            <p class="text-xs font-medium text-emerald-700 uppercase">Total de despesas CEAP</p>
-                            <p class="text-xl font-bold text-emerald-900 mt-1">
-                                R$ {{ number_format($p['total_expenses'], 2, ',', '.') }}
-                            </p>
-                            @if ($p['bancada_avg'])
-                                <p class="text-xs text-emerald-600 mt-1">
-                                    Média da bancada: R$ {{ number_format($p['bancada_avg'], 2, ',', '.') }}
-                                </p>
+            {{-- ATUAÇÃO NO MANDATO --}}
+            @php
+                $secoesAtuacao = match($cargo) {
+                    'deputado' => [
+                        ['key' => 'projetos', 'title' => 'Projetos de lei', 'preview' => $p['bills_count'].' apresentados em '.$p['last_bill_year'] ?? '—', 'icon' => 'seal', 'has_data' => $p['bills_count'] > 0],
+                        ['key' => 'votos', 'title' => 'Votos e presença', 'preview' => $p['votes_count'].' votos registrados'.($p['presenca_percentual'] ? ' · presença em '.$p['presenca_percentual'].'% das sessões' : ''), 'icon' => 'seal', 'has_data' => $p['votes_count'] > 0],
+                        ['key' => 'comissoes', 'title' => 'Comissões e frentes parlamentares', 'preview' => 'Membro de '.$p['committees_count'].' comissões · '.$p['fronts_total'].' frentes', 'icon' => 'neutral', 'has_data' => $p['committees_count'] > 0 || $p['fronts_total'] > 0],
+                        ['key' => 'fiscalizacao', 'title' => 'Fiscalização do governo', 'preview' => $p['speeches_count'].' discursos registrados', 'icon' => 'neutral', 'has_data' => $p['speeches_count'] > 0],
+                    ],
+                    'senador' => [
+                        ['key' => 'projetos', 'title' => 'Projetos de lei', 'preview' => $p['bills_count'].' apresentados', 'icon' => 'seal', 'has_data' => $p['bills_count'] > 0],
+                        ['key' => 'votos', 'title' => 'Votos e presença', 'preview' => $p['votes_count'].' votos registrados'.($p['presenca_percentual'] ? ' · presença em '.$p['presenca_percentual'].'% das sessões' : ''), 'icon' => 'seal', 'has_data' => $p['votes_count'] > 0],
+                        ['key' => 'indicacoes', 'title' => 'Indicações e nomeações aprovadas', 'preview' => 'Ainda não importado', 'icon' => 'neutral', 'has_data' => false],
+                        ['key' => 'comissoes', 'title' => 'Comissões e relatorias', 'preview' => 'Membro de '.$p['committees_count'].' comissões · '.count($p['rapporteurships']).' relatorias', 'icon' => 'neutral', 'has_data' => $p['committees_count'] > 0 || count($p['rapporteurships']) > 0],
+                    ],
+                    'presidente' => [
+                        ['key' => 'leis', 'title' => 'Leis sancionadas e vetos', 'preview' => 'Ainda não importado', 'icon' => 'seal', 'has_data' => false],
+                        ['key' => 'mps', 'title' => 'Medidas provisórias', 'preview' => 'Ainda não importado', 'icon' => 'neutral', 'has_data' => false],
+                        ['key' => 'ministros', 'title' => 'Ministros nomeados e exonerados', 'preview' => 'Ainda não importado', 'icon' => 'neutral', 'has_data' => false],
+                        ['key' => 'agenda', 'title' => 'Agenda internacional', 'preview' => 'Ainda não importado', 'icon' => 'neutral', 'has_data' => false],
+                    ],
+                    'vice' => [
+                        ['key' => 'substituicoes', 'title' => 'Substituições da presidência', 'preview' => 'Ainda não importado', 'icon' => 'seal', 'has_data' => false],
+                        ['key' => 'atribuicoes', 'title' => 'Atribuições delegadas', 'preview' => 'Sem registro público estruturado (não verificável)', 'icon' => 'neutral', 'has_data' => false],
+                    ],
+                };
+            @endphp
+
+            <p class="mc-section-label">atuação no mandato</p>
+            <div class="mc-accordion">
+                @foreach ($secoesAtuacao as $i => $secao)
+                    <details {{ $i === 0 ? 'open' : '' }} class="mc-details">
+                        <summary class="mc-summary">
+                            <span class="mc-icon-wrap mc-ic-{{ $secao['icon'] }}">
+                                @if ($secao['icon'] === 'seal')
+                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 12l2 2 4-4"/><circle cx="12" cy="12" r="9"/></svg>
+                                @elseif ($secao['icon'] === 'alert')
+                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+                                @else
+                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4M12 8h.01"/></svg>
+                                @endif
+                            </span>
+                            <span class="mc-summary-text">
+                                <div class="mc-summary-title">{{ $secao['title'] }}</div>
+                                <div class="mc-summary-preview">{{ $secao['preview'] }}</div>
+                            </span>
+                            <svg class="mc-chevron" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 9l6 6 6-6"/></svg>
+                        </summary>
+                        <div class="mc-body">
+                            @if ($secao['key'] === 'projetos')
+                                @if (count($p['bills']) > 0)
+                                    @foreach ($p['bills'] as $bill)
+                                        <a href="https://www.camara.leg.br/proposicoesWeb/fichadetramitacao?idProposicao={{ $bill['external_id'] }}" target="_blank" rel="noopener" style="display:flex;gap:14px;padding:11px 0;border-bottom:1px solid var(--line);text-decoration:none;">
+                                            <span class="mc-act-date">{{ $bill['year'] }}</span>
+                                            <span class="mc-act-desc">{{ $bill['title'] }}</span>
+                                        </a>
+                                    @endforeach
+                                    @if ($p['bills_count'] > 3)
+                                        <div class="mc-see-all" wire:click="$dispatch('openProposicoesModal')">ver todos os {{ $p['bills_count'] }} →</div>
+                                    @endif
+                                @else
+                                    <p class="mc-empty-note">Nenhum projeto encontrado.</p>
+                                @endif
+
+                            @elseif ($secao['key'] === 'votos')
+                                @if (count($p['votes']) > 0)
+                                    @foreach ($p['votes'] as $vote)
+                                        @php
+                                            $extId = $vote['session_external_id'] ?? '';
+                                            $votacaoId = explode('-', $extId)[0];
+                                            $camaraUrl = $votacaoId ? "https://www.camara.leg.br/plenario/votacao/{$votacaoId}" : '#';
+                                            $voteTitle = $vote['bill_title'] ?? 'Votação';
+                                            $orientation = $vote['party_orientation'] ?? null;
+                                            $aligned = $vote['aligned'] ?? null;
+                                        @endphp
+                                        <a href="{{ $camaraUrl }}" target="_blank" rel="noopener" style="display:flex;gap:14px;padding:11px 0;border-bottom:1px solid var(--line);text-decoration:none;align-items:center;">
+                                            <span style="width:8px;height:8px;border-radius:50%;flex-shrink:0;background:{{ $vote['vote'] === 'Sim' ? 'var(--seal)' : ($vote['vote'] === 'Não' ? 'var(--alert)' : 'var(--ink-faint)') }};"></span>
+                                            <span style="flex:1;min-width:0;">
+                                                <span class="mc-act-desc" style="display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">{{ $voteTitle }}</span>
+                                                <span class="mc-act-date" style="width:auto;">{{ $vote['date'] }}@if($orientation) · orientação: {{ $orientation }}@if($aligned !== null) · {{ $aligned ? 'alinhado' : 'desalinhado' }}@endif@endif</span>
+                                            </span>
+                                            <span style="font-size:12px;font-weight:500;color:{{ $vote['vote'] === 'Sim' ? 'var(--seal)' : ($vote['vote'] === 'Não' ? 'var(--alert)' : 'var(--ink-faint)') }};">{{ $vote['vote'] }}</span>
+                                        </a>
+                                    @endforeach
+                                    @if ($p['votes_count'] > 5)
+                                        <div class="mc-see-all" wire:click="$dispatch('openVotacoesModal')">ver todos os {{ $p['votes_count'] }} →</div>
+                                    @endif
+                                    <p class="mc-empty-note" style="font-style:normal;margin-top:8px;">* Presença calculada com base nos votos registrados.</p>
+                                @else
+                                    <p class="mc-empty-note">Nenhum voto registrado.</p>
+                                @endif
+
+                            @elseif ($secao['key'] === 'comissoes')
+                                @if (count($p['committees']) > 0)
+                                    @foreach (array_slice($p['committees'], 0, 5) as $committee)
+                                        <div style="padding:11px 0;border-bottom:1px solid var(--line);">
+                                            <p style="font-size:13.5px;color:var(--ink);margin:0;line-height:1.5;">
+                                                {{ $committee['acronym'] ? $committee['acronym'].' · ' : '' }}{{ $committee['name'] }}
+                                            </p>
+                                            <p style="font-size:12px;color:var(--ink-faint);margin:2px 0 0;">
+                                                {{ $committee['role'] ?? 'Membro' }}
+                                                @if ($committee['start_date']) · Desde {{ $committee['start_date'] }} @endif
+                                            </p>
+                                        </div>
+                                    @endforeach
+                                @endif
+                                @if (count($p['fronts_grouped']) > 0)
+                                    <p style="font-size:11px;letter-spacing:.06em;text-transform:uppercase;color:var(--ink-faint);margin:14px 0 6px;">Frentes parlamentares</p>
+                                    @foreach ($p['fronts_grouped'] as $group)
+                                        <div style="padding:8px 0;border-bottom:1px solid var(--line);">
+                                            <p style="font-size:13px;color:var(--ink);margin:0;">{{ $group['category'] }} <span style="font-size:11px;color:var(--ink-faint);">({{ $group['count'] }})</span></p>
+                                        </div>
+                                    @endforeach
+                                @endif
+                                @if (count($p['rapporteurships']) > 0)
+                                    <p style="font-size:11px;letter-spacing:.06em;text-transform:uppercase;color:var(--ink-faint);margin:14px 0 6px;">Relatorias</p>
+                                    @foreach (array_slice($p['rapporteurships'], 0, 3) as $rapport)
+                                        <div style="padding:8px 0;border-bottom:1px solid var(--line);">
+                                            <p style="font-size:13px;color:var(--ink);margin:0;">{{ $rapport['bill_description'] ?? '—' }}</p>
+                                            <p style="font-size:12px;color:var(--ink-faint);margin:2px 0 0;">{{ $rapport['commission'] }}</p>
+                                        </div>
+                                    @endforeach
+                                @endif
+                                @if (count($p['leaderships']) > 0)
+                                    <p style="font-size:11px;letter-spacing:.06em;text-transform:uppercase;color:var(--ink-faint);margin:14px 0 6px;">Lideranças</p>
+                                    @foreach ($p['leaderships'] as $leadership)
+                                        <div style="padding:8px 0;border-bottom:1px solid var(--line);">
+                                            <p style="font-size:13px;color:var(--ink);margin:0;">{{ $leadership['position'] }}</p>
+                                            <p style="font-size:12px;color:var(--ink-faint);margin:2px 0 0;">{{ $leadership['house'] }} · {{ $leadership['start_date'] ?? '—' }} a {{ $leadership['end_date'] ?? 'Atual' }}</p>
+                                        </div>
+                                    @endforeach
+                                @endif
+                                @if (count($p['committees']) === 0 && count($p['fronts_grouped']) === 0 && count($p['rapporteurships']) === 0 && count($p['leaderships']) === 0)
+                                    <p class="mc-empty-note">Nenhuma comissão ou frente encontrada.</p>
+                                @endif
+
+                            @elseif ($secao['key'] === 'fiscalizacao')
+                                @if ($p['speeches_count'] > 0)
+                                    <p style="font-size:13px;color:var(--ink);line-height:1.5;">{{ $p['speeches_count'] }} discursos registrados na Câmara</p>
+                                @else
+                                    <p class="mc-empty-note">Nenhuma fiscalização registrada.</p>
+                                @endif
+
+                            @elseif ($secao['key'] === 'indicacoes')
+                                <p class="mc-empty-note">Dados de indicações e sabatinas ainda não importados.</p>
+
+                            @elseif ($secao['key'] === 'leis' || $secao['key'] === 'mps' || $secao['key'] === 'ministros' || $secao['key'] === 'agenda')
+                                <p class="mc-empty-note">Dados ainda não importados. Serão disponibilizados em atualização futura.</p>
+
+                            @elseif ($secao['key'] === 'substituicoes')
+                                <p class="mc-empty-note">Dados de substituições ainda não importados.</p>
+
+                            @elseif ($secao['key'] === 'atribuicoes')
+                                <p class="mc-empty-note">As atribuições delegadas pelo presidente ao vice não são publicadas de forma estruturada. Este campo mostra apenas o que é possível verificar em fontes oficiais.</p>
                             @endif
                         </div>
+                    </details>
+                @endforeach
+            </div>
 
-                        @if (count($p['expense_breakdown']) > 0)
-                            <div class="mt-3 space-y-2">
-                                @php $maxType = max(array_column($p['expense_breakdown'], 'total')); @endphp
-                                @foreach (array_slice($p['expense_breakdown'], 0, 5) as $item)
-                                    <div class="bg-white border border-zinc-200 rounded-lg px-3 py-2">
-                                        <div class="flex items-center justify-between mb-1">
-                                            <span class="text-sm text-zinc-900">{{ $item['type'] }}</span>
-                                            <span class="text-sm font-mono font-semibold text-zinc-900">
-                                                R$ {{ number_format($item['total'], 2, ',', '.') }}
-                                            </span>
-                                        </div>
-                                        <div class="w-full bg-zinc-100 rounded-full h-1.5">
-                                            <div
-                                                class="bg-emerald-500 h-1.5 rounded-full transition-all"
-                                                style="width: {{ $maxType > 0 ? ($item['total'] / $maxType * 100) : 0 }}%"
-                                            ></div>
-                                        </div>
-                                        <p class="text-[11px] text-zinc-400 mt-1">{{ $item['count'] }} documentos</p>
-                                    </div>
-                                @endforeach
-                            </div>
-                        @endif
+            {{-- FINANÇAS --}}
+            @php
+                $secoesFinancas = match($cargo) {
+                    'deputado' => [
+                        ['key' => 'gastos', 'title' => 'Gastos de gabinete (CEAP)', 'preview' => 'R$ '.number_format($p['total_expenses'], 0, ',', '.').($p['bancada_avg'] ? ' · média da bancada: R$ '.number_format($p['bancada_avg'], 0, ',', '.') : ''), 'icon' => 'money', 'has_data' => $p['total_expenses'] > 0],
+                        ['key' => 'financiamento', 'title' => 'Financiamento de campanha', 'preview' => 'R$ '.number_format($p['total_campanha'], 0, ',', '.').' · '.count($p['campaign_financings']).' doadores', 'icon' => 'money', 'has_data' => $p['total_campanha'] > 0],
+                        ['key' => 'bens', 'title' => 'Bens declarados', 'preview' => 'R$ '.number_format($p['total_bens'], 0, ',', '.').' declarado ao TSE em 2022', 'icon' => 'neutral', 'has_data' => $p['total_bens'] > 0],
+                    ],
+                    'senador' => [
+                        ['key' => 'financiamento', 'title' => 'Financiamento de campanha', 'preview' => 'R$ '.number_format($p['total_campanha'], 0, ',', '.').' · '.count($p['campaign_financings']).' doadores', 'icon' => 'money', 'has_data' => $p['total_campanha'] > 0],
+                        ['key' => 'bens', 'title' => 'Bens declarados', 'preview' => 'R$ '.number_format($p['total_bens'], 0, ',', '.').' declarado ao TSE em 2022', 'icon' => 'neutral', 'has_data' => $p['total_bens'] > 0],
+                    ],
+                    'presidente' => [
+                        ['key' => 'despesas_governo', 'title' => 'Despesas do governo', 'preview' => 'Ainda não importado', 'icon' => 'money', 'has_data' => false],
+                        ['key' => 'financiamento', 'title' => 'Financiamento de campanha', 'preview' => 'R$ '.number_format($p['total_campanha'], 0, ',', '.').' · '.count($p['campaign_financings']).' doadores', 'icon' => 'money', 'has_data' => $p['total_campanha'] > 0],
+                        ['key' => 'bens', 'title' => 'Bens declarados', 'preview' => 'R$ '.number_format($p['total_bens'], 0, ',', '.').' declarado ao TSE em 2022', 'icon' => 'neutral', 'has_data' => $p['total_bens'] > 0],
+                    ],
+                    'vice' => [
+                        ['key' => 'financiamento', 'title' => 'Financiamento de campanha', 'preview' => 'Compartilhado com a chapa presidencial', 'icon' => 'money', 'has_data' => $p['total_campanha'] > 0],
+                        ['key' => 'bens', 'title' => 'Bens declarados', 'preview' => 'R$ '.number_format($p['total_bens'], 0, ',', '.').' declarado ao TSE em 2022', 'icon' => 'neutral', 'has_data' => $p['total_bens'] > 0],
+                    ],
+                };
+            @endphp
 
-                        @if (count($p['expenses']) > 0)
-                            <div class="mt-3">
-                                <p class="text-xs font-medium text-zinc-500 mb-2">Despesas recentes</p>
-                                <div class="space-y-1">
-                                    @foreach ($p['expenses'] as $expense)
-                                        <div class="flex items-center justify-between text-sm">
-                                            <span class="text-zinc-600">{{ $expense['date'] }} · {{ $expense['description'] ?: $expense['type'] }}</span>
-                                            <span class="font-mono font-semibold text-zinc-900">R$ {{ number_format($expense['value'], 2, ',', '.') }}</span>
+            <p class="mc-section-label">finanças</p>
+            <div class="mc-accordion">
+                @foreach ($secoesFinancas as $i => $secao)
+                    <details {{ $i === 0 ? 'open' : '' }} class="mc-details">
+                        <summary class="mc-summary">
+                            <span class="mc-icon-wrap mc-ic-{{ $secao['icon'] }}">
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                    @if ($secao['key'] === 'gastos' || $secao['key'] === 'despesas_governo')
+                                        <rect x="2" y="6" width="20" height="13" rx="2"/><path d="M2 10h20M7 15h3"/>
+                                    @elseif ($secao['key'] === 'financiamento')
+                                        <path d="M12 1v22M17 5H9.5a3.5 3.5 0 000 7h5a3.5 3.5 0 010 7H6"/>
+                                    @else
+                                        <path d="M3 21h18M5 21V7l7-4 7 4v14M9 9h1m4 0h1m-6 4h1m4 0h1"/>
+                                    @endif
+                                </svg>
+                            </span>
+                            <span class="mc-summary-text">
+                                <div class="mc-summary-title">{{ $secao['title'] }}</div>
+                                <div class="mc-summary-preview">{{ $secao['preview'] }}</div>
+                            </span>
+                            <svg class="mc-chevron" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 9l6 6 6-6"/></svg>
+                        </summary>
+                        <div class="mc-body">
+                            @if ($secao['key'] === 'gastos')
+                                @if (count($p['expense_breakdown']) > 0)
+                                    @foreach ($p['expense_breakdown'] as $item)
+                                        <div style="display:flex;justify-content:space-between;padding:11px 0;border-bottom:1px solid var(--line);">
+                                            <span style="font-size:13.5px;color:var(--ink);">{{ $item['type'] }}</span>
+                                            <span style="font-size:13.5px;font-weight:600;color:var(--ink);font-family:monospace;">R$ {{ number_format($item['total'], 2, ',', '.') }}</span>
                                         </div>
                                     @endforeach
-                                </div>
-                                @if ($p['expenses_count'] > 3)
-                                    <button wire:click="$dispatch('openDespesasModal')" class="text-xs text-blue-600 hover:text-blue-800 font-medium mt-2">
-                                        Ver todas as despesas →
-                                    </button>
+                                    <p style="font-size:11px;color:var(--ink-faint);margin-top:8px;">{{ $p['expenses_count'] }} documentos no total.</p>
+                                    @if ($p['expenses_count'] > 5)
+                                        <div class="mc-see-all" wire:click="$dispatch('openDespesasModal')">ver todas as {{ $p['expenses_count'] }} →</div>
+                                    @endif
+                                @else
+                                    <p class="mc-empty-note">Nenhum gasto CEAP registrado.</p>
                                 @endif
-                            </div>
-                        @endif
-
-                        <p class="text-[10px] text-zinc-400 mt-3">Fonte: Câmara dos Deputados — CEAP</p>
-                    </div>
-                @endif
-            </div>
-        @endif
-
-        {{-- BLOCO 7: FINANCIAMENTO DE CAMPANHA --}}
-        @if ($p['total_campanha'] > 0)
-            <div class="mb-4 border border-zinc-200 rounded-lg overflow-hidden">
-                <button wire:click="toggleFinanciamento" class="w-full flex items-center justify-between px-4 py-3 bg-white hover:bg-zinc-50 transition">
-                    <span class="text-sm font-semibold text-zinc-900">Financiamento de Campanha</span>
-                    <svg class="w-4 h-4 text-zinc-500 transition-transform {{ $this->showFinanciamento ? 'rotate-180' : '' }}" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>
-                </button>
-                @if ($this->showFinanciamento)
-                    <div class="px-4 pb-4 border-t border-zinc-100">
-                        <div class="mt-3">
-                            <p class="text-xs text-zinc-500">Total arrecadado</p>
-                            <p class="text-xl font-bold text-zinc-900">R$ {{ number_format($p['total_campanha'], 2, ',', '.') }}</p>
+                            @elseif ($secao['key'] === 'financiamento')
+                                @if (count($p['campaign_financings']) > 0)
+                                    @foreach ($p['campaign_financings'] as $fonte)
+                                        <div style="display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid var(--line);">
+                                            <span style="font-size:13px;color:var(--ink);">{{ $fonte['type'] }}</span>
+                                            <span style="font-size:13px;font-weight:600;color:var(--ink);font-family:monospace;">R$ {{ number_format($fonte['total'], 2, ',', '.') }}</span>
+                                        </div>
+                                    @endforeach
+                                @else
+                                    <p class="mc-empty-note">Nenhum financiamento registrado.</p>
+                                @endif
+                            @elseif ($secao['key'] === 'bens')
+                                @if (count($p['asset_declarations']) > 0)
+                                    @foreach ($p['asset_declarations'] as $asset)
+                                        <div style="display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid var(--line);">
+                                            <span style="font-size:13px;color:var(--ink);">{{ $asset['year'] }} · {{ $asset['description'] }}</span>
+                                            <span style="font-size:13px;font-weight:600;color:var(--ink);font-family:monospace;">R$ {{ number_format($asset['value'], 2, ',', '.') }}</span>
+                                        </div>
+                                    @endforeach
+                                    <p style="font-size:11px;color:var(--ink-faint);margin-top:8px;">Dados referentes aos anos eleitorais.</p>
+                                @else
+                                    <p class="mc-empty-note">Nenhum bem declarado.</p>
+                                @endif
+                            @elseif ($secao['key'] === 'despesas_governo')
+                                <p class="mc-empty-note">Dados de despesas do governo ainda não importados.</p>
+                            @endif
                         </div>
-
-                        @if (count($p['campaign_financings']) > 0)
-                            <div class="mt-3 space-y-1">
-                                @foreach ($p['campaign_financings'] as $fonte)
-                                    <div class="flex items-center justify-between text-sm">
-                                        <span class="text-zinc-600">{{ $fonte['type'] }}</span>
-                                        <span class="font-mono font-semibold text-zinc-900">R$ {{ number_format($fonte['total'], 2, ',', '.') }}</span>
-                                    </div>
-                                @endforeach
-                            </div>
-                        @endif
-
-                        @if (count($p['doadores']) > 0)
-                            <div class="mt-3">
-                                <p class="text-xs font-medium text-zinc-500 mb-2">Principais doadores</p>
-                                <div class="space-y-1">
-                                    @foreach ($p['doadores'] as $doador)
-                                        <div class="flex items-center justify-between text-sm">
-                                            <span class="text-zinc-600">{{ $doador['name'] }} ({{ $doador['type'] }})</span>
-                                            <span class="font-mono font-semibold text-zinc-900">R$ {{ number_format($doador['value'], 2, ',', '.') }}</span>
-                                        </div>
-                                    @endforeach
-                                </div>
-                            </div>
-                        @endif
-
-                        <p class="text-[10px] text-zinc-400 mt-3">Fonte: TSE — Prestação de Contas</p>
-                    </div>
-                @endif
+                    </details>
+                @endforeach
             </div>
-        @endif
 
-        {{-- BLOCO 8: COMISSÕES E ATUAÇÃO --}}
-        @if (count($p['committees']) > 0 || count($p['fronts']) > 0 || count($p['leaderships']) > 0)
-            <div class="mb-4 border border-zinc-200 rounded-lg overflow-hidden">
-                <button wire:click="toggleComissoes" class="w-full flex items-center justify-between px-4 py-3 bg-white hover:bg-zinc-50 transition">
-                    <span class="text-sm font-semibold text-zinc-900">Comissões e Atuação</span>
-                    <svg class="w-4 h-4 text-zinc-500 transition-transform {{ $this->showComissoes ? 'rotate-180' : '' }}" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>
-                </button>
-                @if ($this->showComissoes)
-                    <div class="px-4 pb-4 border-t border-zinc-100">
-                        @if (count($p['committees']) > 0)
-                            <div class="mt-3">
-                                <p class="text-xs font-medium text-zinc-500 uppercase mb-2">Comissões</p>
-                                <div class="space-y-2">
-                                    @foreach (array_slice($p['committees'], 0, 5) as $committee)
-                                        <div class="flex items-center gap-2">
-                                            <div class="w-2 h-2 rounded-full bg-violet-500 flex-shrink-0"></div>
-                                            <div>
-                                                <p class="text-sm text-zinc-900">
-                                                    {{ $committee['acronym'] ? $committee['acronym'].' — ' : '' }}{{ $committee['name'] }}
-                                                </p>
-                                                <p class="text-xs text-zinc-500">
-                                                    {{ $committee['role'] ?? 'Membro' }}
-                                                    @if ($committee['start_date']) · Desde {{ $committee['start_date'] }} @endif
-                                                </p>
-                                            </div>
-                                        </div>
-                                    @endforeach
-                                </div>
-                            </div>
-                        @endif
+            {{-- COMPROMISSOS DE CAMPANHA (presidente) --}}
+            @if ($cargo === 'presidente')
+                <p class="mc-section-label">compromissos de campanha</p>
+                <div class="mc-accordion">
+                    <details class="mc-details">
+                        <summary class="mc-summary">
+                            <span class="mc-icon-wrap mc-ic-seal">
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><path d="M14 2v6h6"/></svg>
+                            </span>
+                            <span class="mc-summary-text">
+                                <div class="mc-summary-title">Propostas de governo</div>
+                                <div class="mc-summary-preview">Plano de governo registrado no TSE em 2022</div>
+                            </span>
+                            <svg class="mc-chevron" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 9l6 6 6-6"/></svg>
+                        </summary>
+                        <div class="mc-body">
+                            <p class="mc-empty-note">Propostas de governo ainda não importadas.</p>
+                        </div>
+                    </details>
+                </div>
+            @endif
 
-                        @if (count($p['fronts']) > 0)
-                            <div class="mt-3">
-                                <p class="text-xs font-medium text-zinc-500 uppercase mb-2">Frentes Parlamentares</p>
-                                <div class="flex flex-wrap gap-1.5">
-                                    @foreach ($p['fronts'] as $front)
-                                        <span class="text-xs font-medium px-2 py-0.5 rounded-full bg-violet-50 text-violet-700 border border-violet-200">
-                                            {{ $front['title'] }}
-                                        </span>
-                                    @endforeach
-                                </div>
-                            </div>
-                        @endif
-
-                        @if (count($p['leaderships']) > 0)
-                            <div class="mt-3">
-                                <p class="text-xs font-medium text-zinc-500 uppercase mb-2">Lideranças</p>
-                                <div class="space-y-1">
-                                    @foreach ($p['leaderships'] as $leadership)
-                                        <div class="text-sm">
-                                            <span class="text-zinc-900 font-medium">{{ $leadership['position'] }}</span>
-                                            <span class="text-zinc-500">
-                                                · {{ $leadership['house'] }}
-                                                · {{ $leadership['start_date'] ?? '—' }} — {{ $leadership['end_date'] ?? 'Atual' }}
-                                            </span>
-                                        </div>
-                                    @endforeach
-                                </div>
-                            </div>
-                        @endif
-
-                        @if (count($p['rapporteurships']) > 0)
-                            <div class="mt-3">
-                                <p class="text-xs font-medium text-zinc-500 uppercase mb-2">Relatorias</p>
-                                <div class="space-y-1">
-                                    @foreach (array_slice($p['rapporteurships'], 0, 3) as $rapport)
-                                        <div class="text-sm">
-                                            <span class="text-zinc-900">{{ $rapport['bill_description'] ?? '—' }}</span>
-                                            <span class="text-zinc-500"> · {{ $rapport['commission'] }}</span>
-                                        </div>
-                                    @endforeach
-                                </div>
-                            </div>
-                        @endif
-
-                        <p class="text-[10px] text-zinc-400 mt-3">Fonte: Câmara dos Deputados / Senado Federal</p>
-                    </div>
-                @endif
-            </div>
-        @endif
-
-        {{-- BLOCO 9: BENS DECLARADOS --}}
-        @if (count($p['asset_declarations']) > 0)
-            <div class="mb-4 border border-zinc-200 rounded-lg overflow-hidden">
-                <button wire:click="toggleBens" class="w-full flex items-center justify-between px-4 py-3 bg-white hover:bg-zinc-50 transition">
-                    <span class="text-sm font-semibold text-zinc-900">Bens Declarados</span>
-                    <svg class="w-4 h-4 text-zinc-500 transition-transform {{ $this->showBens ? 'rotate-180' : '' }}" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>
-                </button>
-                @if ($this->showBens)
-                    <div class="px-4 pb-4 border-t border-zinc-100">
-                        <div class="mt-3 space-y-1">
-                            @foreach ($p['asset_declarations'] as $asset)
-                                <div class="flex items-center justify-between text-sm">
-                                    <span class="text-zinc-600">{{ $asset['year'] }} — {{ $asset['description'] }}</span>
-                                    <span class="font-mono font-semibold text-zinc-900">R$ {{ number_format($asset['value'], 2, ',', '.') }}</span>
+            {{-- HISTÓRICO E INTEGRIDADE --}}
+            <p class="mc-section-label">histórico e integridade</p>
+            <div class="mc-accordion">
+                <details open class="mc-details">
+                    <summary class="mc-summary">
+                        <span class="mc-icon-wrap mc-ic-neutral">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 3"/></svg>
+                        </span>
+                        <span class="mc-summary-text">
+                            <div class="mc-summary-title">Trajetória política</div>
+                            <div class="mc-summary-preview">{{ count($p['mandates']) }} mandato{{ count($p['mandates']) !== 1 ? 's' : '' }}: {{ strtolower($p['position']) }}{{ count($p['mandates']) > 1 ? '' : ' (atual)' }}</div>
+                        </span>
+                        <svg class="mc-chevron" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 9l6 6 6-6"/></svg>
+                    </summary>
+                    <div class="mc-body">
+                        @if (count($p['mandates']) > 0)
+                            @foreach ($p['mandates'] as $mandate)
+                                <div class="mc-act">
+                                    <span class="mc-act-date" style="width:auto;">{{ $mandate['started_at'] ?? '—' }}</span>
+                                    <span class="mc-act-desc" style="font-weight:500;">{{ $mandate['position'] }} <span style="font-weight:400;color:var(--ink-faint);">a {{ $mandate['ended_at'] ?? 'Em exercício' }}</span></span>
                                 </div>
                             @endforeach
-                        </div>
-                        <p class="text-[10px] text-zinc-400 mt-3">
-                            ⚠️ Dados referentes aos anos eleitorais. Não representa série contínua.
-                        </p>
-                        <p class="text-[10px] text-zinc-400">Fonte: TSE — Declaração de Bens</p>
+                        @else
+                            <p class="mc-empty-note">Nenhum mandato registrado.</p>
+                        @endif
                     </div>
-                @endif
-            </div>
-        @endif
+                </details>
 
-        {{-- BLOCO 10: PROCESSOS E INTEGRIDADE --}}
-        @if (count($p['legal_proceedings']) > 0)
-            <div class="mb-4 border border-zinc-200 rounded-lg overflow-hidden">
-                <button wire:click="toggleProcessos" class="w-full flex items-center justify-between px-4 py-3 bg-white hover:bg-zinc-50 transition">
-                    <span class="text-sm font-semibold text-zinc-900">Processos e Integridade</span>
-                    <svg class="w-4 h-4 text-zinc-500 transition-transform {{ $this->showProcessos ? 'rotate-180' : '' }}" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>
-                </button>
-                @if ($this->showProcessos)
-                    <div class="px-4 pb-4 border-t border-zinc-100">
-                        <div class="mt-3 space-y-2">
+                <details class="mc-details">
+                    <summary class="mc-summary">
+                        <span class="mc-icon-wrap {{ count($p['legal_proceedings']) > 0 ? 'mc-ic-alert' : 'mc-ic-seal' }}">
+                            @if (count($p['legal_proceedings']) > 0)
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+                            @else
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2l8 4v6c0 5-3.5 8.5-8 10-4.5-1.5-8-5-8-10V6z"/></svg>
+                            @endif
+                        </span>
+                        <span class="mc-summary-text">
+                            <div class="mc-summary-title">Processos e integridade</div>
+                            <div class="mc-summary-preview">{{ count($p['legal_proceedings']) > 0 ? count($p['legal_proceedings']).' processo(s) em andamento' : 'Nenhum processo em andamento' }}</div>
+                        </span>
+                        <svg class="mc-chevron" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 9l6 6 6-6"/></svg>
+                    </summary>
+                    <div class="mc-body">
+                        @if (count($p['legal_proceedings']) > 0)
                             @foreach ($p['legal_proceedings'] as $process)
-                                <div class="bg-white border border-zinc-200 rounded-lg px-3 py-2">
-                                    <div class="flex items-center justify-between">
-                                        <span class="text-sm text-zinc-900 font-medium">{{ $process['process_number'] }}</span>
-                                        <span class="text-xs bg-zinc-100 text-zinc-600 px-2 py-0.5 rounded-full">{{ $process['status'] }}</span>
+                                <div style="padding:11px 0;border-bottom:1px solid var(--line);">
+                                    <div style="display:flex;justify-content:space-between;align-items:center;">
+                                        <span style="font-size:13.5px;font-weight:500;color:var(--ink);">{{ $process['process_number'] }}</span>
+                                        <span style="font-size:11px;color:var(--ink-faint);background:var(--neutral);padding:2px 8px;border-radius:8px;">{{ $process['status'] }}</span>
                                     </div>
-                                    <p class="text-xs text-zinc-500 mt-0.5">{{ $process['court'] }}</p>
+                                    <p style="font-size:12px;color:var(--ink-faint);margin:2px 0 0;">{{ $process['court'] }}</p>
                                     @if ($process['description'])
-                                        <p class="text-xs text-zinc-400 mt-0.5">{{ $process['description'] }}</p>
+                                        <p style="font-size:12px;color:var(--ink-soft);margin:2px 0 0;">{{ $process['description'] }}</p>
                                     @endif
                                     @if ($process['source_url'])
-                                        <a href="{{ $process['source_url'] }}" target="_blank" rel="noopener" class="text-xs text-blue-600 hover:text-blue-800 mt-1 inline-flex items-center gap-1">
-                                            Ver no tribunal →
-                                        </a>
+                                        <a href="{{ $process['source_url'] }}" target="_blank" rel="noopener" style="font-size:12px;color:var(--seal);text-decoration:none;margin-top:4px;display:inline-block;">Ver no tribunal →</a>
                                     @endif
                                 </div>
                             @endforeach
-                        </div>
-                        <p class="text-[10px] text-zinc-400 mt-3">
-                            ⚠️ Status, não veredito. Cada processo linka à fonte oficial para verificação.
-                        </p>
+                            <p style="font-size:11px;color:var(--ink-faint);margin-top:8px;">Status, não veredito. Cada processo linka à fonte oficial para verificação.</p>
+                        @else
+                            <p class="mc-empty-note">Nenhum processo judicial em andamento registrado no TSE ou nos tribunais consultados.</p>
+                        @endif
                     </div>
-                @endif
+                </details>
             </div>
-        @endif
 
-        {{-- BLOCO 11: DADOS PESSOAIS --}}
-        <div class="mb-4 border border-zinc-200 rounded-lg overflow-hidden">
-            <button wire:click="toggleDadosPessoais" class="w-full flex items-center justify-between px-4 py-3 bg-white hover:bg-zinc-50 transition">
-                <span class="text-sm font-semibold text-zinc-900">Dados Pessoais</span>
-                <svg class="w-4 h-4 text-zinc-500 transition-transform {{ $this->showDadosPessoais ? 'rotate-180' : '' }}" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>
-            </button>
-            @if ($this->showDadosPessoais)
-                <div class="px-4 pb-4 border-t border-zinc-100">
-                    <div class="mt-3 grid grid-cols-2 gap-3">
-                        @if ($p['education'])
-                            <div>
-                                <p class="text-xs text-zinc-500">Escolaridade</p>
-                                <p class="text-sm text-zinc-900">{{ $p['education'] }}</p>
-                            </div>
-                        @endif
-                        @if ($p['birth_date'])
-                            <div>
-                                <p class="text-xs text-zinc-500">Nascimento</p>
-                                <p class="text-sm text-zinc-900">{{ $p['birth_date'] }}</p>
-                            </div>
-                        @endif
-                        @if ($p['declared_profession'])
-                            <div>
-                                <p class="text-xs text-zinc-500">Profissão</p>
-                                <p class="text-sm text-zinc-900">{{ $p['declared_profession'] }}</p>
-                            </div>
-                        @endif
-                        @if ($p['uf_birth'] || $p['municipality_birth'])
-                            <div>
-                                <p class="text-xs text-zinc-500">Naturalidade</p>
-                                <p class="text-sm text-zinc-900">
-                                    {{ $p['municipality_birth'] }}{{ $p['uf_birth'] ? ', '.$p['uf_birth'] : '' }}
-                                </p>
-                            </div>
-                        @endif
-                    </div>
-                    <p class="text-[10px] text-zinc-400 mt-3">Fonte: Câmara dos Deputados</p>
+            {{-- CONTEXT NOTE (vice) --}}
+            @if ($cargo === 'vice')
+                <div class="mc-context-note">
+                    O vice-presidente tem poucas atribuições próprias publicadas de forma verificável — a maior parte do trabalho do cargo é delegada informalmente pelo presidente e não gera registro público estruturado. Este perfil mostra o que é possível confirmar em fontes oficiais.
                 </div>
             @endif
-        </div>
 
-        {{-- BLOCO 12: FONTES --}}
-        <div class="mt-8 pt-6 border-t border-zinc-200">
-            <p class="text-center text-xs text-zinc-500">
-                Dados públicos agregados para transparência política
-            </p>
-            <p class="text-center text-[10px] text-zinc-400 mt-1">
-                Fontes: Câmara dos Deputados · Senado Federal · TSE · Diários Oficiais
-            </p>
-            <div class="flex justify-center mt-4">
-                <flux:button wire:navigate href="{{ route('politicos') }}" variant="ghost">
-                    ← Voltar à lista de políticos
-                </flux:button>
-            </div>
+            {{-- FOOTER --}}
+            <p class="mc-footer-note">Dados oficiais: {{ $this->sourceFooter }}</p>
+
         </div>
     @endif
 </section>

@@ -4,16 +4,17 @@ namespace MeuCandidato\Ingestion\Commands;
 
 use Illuminate\Console\Command;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Log;
 use MeuCandidato\Candidate\Models\Politician;
-use MeuCandidato\Ingestion\Models\IngestionJob;
 use MeuCandidato\Ingestion\Services\CamaraApiClient;
+use MeuCandidato\Ingestion\Support\ManagesJobs;
 use MeuCandidato\Legislative\Models\Bill;
 use MeuCandidato\Legislative\Models\Vote;
 use MeuCandidato\Legislative\Models\VotingSession;
 
 class AtualizarDadosCommand extends Command
 {
+    use ManagesJobs;
+
     protected $signature = 'atualizar-dados
                             {--dias=1 : Dias retroativos para buscar votações}
                             {--mes= : Mês para despesas (1-12, padrão: mês anterior)}
@@ -229,40 +230,5 @@ class AtualizarDadosCommand extends Command
         $this->info("  {$count} despesas CEAP processadas.");
 
         return $count;
-    }
-
-    private function criarJob(string $source): IngestionJob
-    {
-        return IngestionJob::create([
-            'source' => $source,
-            'status' => 'processing',
-            'started_at' => now(),
-            'records_count' => 0,
-        ]);
-    }
-
-    private function finalizarJob(IngestionJob $job, int $count): void
-    {
-        $job->update([
-            'status' => 'completed',
-            'finished_at' => now(),
-            'records_count' => $count,
-        ]);
-    }
-
-    private function falharJob(IngestionJob $job, \Throwable $e): void
-    {
-        $job->update([
-            'status' => 'failed',
-            'finished_at' => now(),
-            'error_log' => $e->getMessage()."\n".$e->getTraceAsString(),
-        ]);
-
-        Log::error('Falha na atualização diária', [
-            'job_id' => $job->id,
-            'error' => $e->getMessage(),
-        ]);
-
-        $this->error("Erro: {$e->getMessage()}");
     }
 }

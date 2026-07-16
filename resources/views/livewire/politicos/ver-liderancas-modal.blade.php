@@ -32,7 +32,7 @@
                                                 <span class="text-xs text-zinc-500">
                                                     {{ $leadership->start_date?->format('d/m/Y') }}
                                                     @if ($leadership->end_date)
-                                                        — {{ $leadership->end_date?->format('d/m/Y') }}
+                                                        a {{ $leadership->end_date?->format('d/m/Y') }}
                                                     @endif
                                                 </span>
                                             </div>

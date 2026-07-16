@@ -77,7 +77,6 @@ class BadgeDefinitionResource extends Resource
                     ->limit(50),
                 Tables\Columns\TextColumn::make('color')
                     ->label('Cor')
-                    ->formatStateUsing(fn ($state) => '')
                     ->html()
                     ->formatStateUsing(fn ($state) => '<span class="inline-block w-4 h-4 rounded-full" style="background-color: '.$state.'"></span>'),
                 Tables\Columns\IconColumn::make('is_active')

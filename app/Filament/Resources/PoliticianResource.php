@@ -73,9 +73,6 @@ class PoliticianResource extends Resource
                 Forms\Components\Textarea::make('defends')
                     ->label('O que defende')
                     ->rows(3),
-                Forms\Components\TextInput::make('trendings')
-                    ->label('Tendências')
-                    ->maxLength(255),
                 Forms\Components\TextInput::make('active_processes')
                     ->label('Processos ativos')
                     ->numeric(),
@@ -83,6 +80,19 @@ class PoliticianResource extends Resource
                     ->label('URL do plano de governo')
                     ->url()
                     ->maxLength(500),
+            ])->columns(2),
+
+            Forms\Components\Section::make('Em alta (Destaque na página inicial)')->schema([
+                Forms\Components\TextInput::make('trending_order')
+                    ->label('Posição (1-8)')
+                    ->helperText('1-2 = Presidente e Vice (fixos). 3-8 = outros destaques. Deixe vazio para não exibir.')
+                    ->numeric()
+                    ->minValue(1)
+                    ->maxValue(8),
+                Forms\Components\TextInput::make('trendings')
+                    ->label('Motivo do destaque')
+                    ->helperText('Motivo curto pelo qual este político está em alta (ex: "Líder em redes sociais").')
+                    ->maxLength(255),
             ])->columns(2),
         ]);
     }

@@ -2,6 +2,7 @@
 
 namespace App\Livewire\Politicos;
 
+use App\Support\FrenteCategorizer;
 use Illuminate\Contracts\View\View;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
@@ -10,70 +11,15 @@ use Livewire\Component;
 use MeuCandidato\Candidate\Models\Politician;
 use MeuCandidato\Identity\Models\Follow;
 use MeuCandidato\Legislative\Models\Bill;
+use MeuCandidato\Legislative\Models\PartyOrientation;
 
 class Show extends Component
 {
     public string $id;
 
-    public bool $showTrajetoria = false;
-
-    public bool $showAtividade = false;
-
-    public bool $showDespesas = false;
-
-    public bool $showFinanciamento = false;
-
-    public bool $showComissoes = false;
-
-    public bool $showBens = false;
-
-    public bool $showProcessos = false;
-
-    public bool $showDadosPessoais = false;
-
     public function mount(string $id): void
     {
         $this->id = $id;
-    }
-
-    public function toggleTrajetoria(): void
-    {
-        $this->showTrajetoria = ! $this->showTrajetoria;
-    }
-
-    public function toggleAtividade(): void
-    {
-        $this->showAtividade = ! $this->showAtividade;
-    }
-
-    public function toggleDespesas(): void
-    {
-        $this->showDespesas = ! $this->showDespesas;
-    }
-
-    public function toggleFinanciamento(): void
-    {
-        $this->showFinanciamento = ! $this->showFinanciamento;
-    }
-
-    public function toggleComissoes(): void
-    {
-        $this->showComissoes = ! $this->showComissoes;
-    }
-
-    public function toggleBens(): void
-    {
-        $this->showBens = ! $this->showBens;
-    }
-
-    public function toggleProcessos(): void
-    {
-        $this->showProcessos = ! $this->showProcessos;
-    }
-
-    public function toggleDadosPessoais(): void
-    {
-        $this->showDadosPessoais = ! $this->showDadosPessoais;
     }
 
     public function toggleFollow(): void
@@ -123,13 +69,26 @@ class Show extends Component
     }
 
     #[Computed]
+    public function cargo(): string
+    {
+        $p = Politician::find($this->id);
+
+        return $p ? $this->detectarCargo($p) : 'deputado';
+    }
+
+    #[Computed]
+    public function sourceFooter(): string
+    {
+        return $this->getSourceFooter($this->cargo);
+    }
+
+    #[Computed]
     public function politician(): ?array
     {
         $p = Politician::with([
             'party',
             'mandates',
             'latestAddress',
-            'badges',
             'committeeMemberships',
             'parliamentaryFronts',
             'leadershipPositions',
@@ -144,6 +103,8 @@ class Show extends Component
         if (! $p) {
             return null;
         }
+
+        $cargo = $this->detectarCargo($p);
 
         $billsCount = Bill::where(fn ($q) => $q->where('author_id', $p->id)
             ->orWhereHas('coauthors', fn ($cq) => $cq->where('politician_id', $p->id)))
@@ -160,7 +121,7 @@ class Show extends Component
                 $q->orderByDesc('date')->limit(1);
             }])
             ->orderByDesc('year')
-            ->limit(3)
+            ->limit(5)
             ->get([
                 'id', 'external_id', 'title', 'description', 'status', 'year',
             ]);
@@ -174,18 +135,35 @@ class Show extends Component
             ->join('voting_sessions', 'votes.voting_session_id', '=', 'voting_sessions.id')
             ->leftJoin('bills', 'voting_sessions.bill_id', '=', 'bills.id')
             ->orderByDesc('voting_sessions.date')
-            ->limit(3)
+            ->limit(5)
             ->get([
                 'votes.vote',
+                'votes.voting_session_id',
                 'bills.title as bill_title',
                 'voting_sessions.external_id as session_external_id',
                 'voting_sessions.description as session_description',
                 'voting_sessions.date as session_date',
             ]);
 
+        $partyAcronym = $p->party?->acronym;
+        $votesWithOrientation = $votes->map(function ($vote) use ($partyAcronym) {
+            $orientation = $partyAcronym ? PartyOrientation::where('voting_session_id', $vote->voting_session_id)
+                ->where('party_acronym', $partyAcronym)
+                ->value('orientation') : null;
+
+            return [
+                'vote' => $vote->vote,
+                'bill_title' => $vote->bill_title ?? $vote->session_description ?? '—',
+                'session_external_id' => $vote->session_external_id,
+                'date' => $vote->session_date ? date('d/m/Y', strtotime($vote->session_date)) : null,
+                'party_orientation' => $orientation,
+                'aligned' => $orientation !== null ? $this->votesAligned($vote->vote, $orientation) : null,
+            ];
+        });
+
         $expenses = $p->expenses()
             ->orderByDesc('document_date')
-            ->limit(3)
+            ->limit(5)
             ->get(['id', 'type', 'description', 'value', 'document_date']);
 
         $expenseAgg = DB::table('expenses')
@@ -213,6 +191,8 @@ class Show extends Component
             ->orderByDesc('year')
             ->get(['id', 'year', 'type', 'description', 'value']);
 
+        $totalBens = (float) $assetDeclarations->sum('value');
+
         $legalProceedings = $p->legalProceedings()
             ->get(['id', 'case_number', 'court', 'status', 'description', 'source_url']);
 
@@ -226,6 +206,27 @@ class Show extends Component
             'total' => (float) $items->sum('value'),
             'count' => $items->count(),
         ])->values()->all();
+
+        $socialMedia = $p->social_media ?? [];
+
+        $socialTwitter = collect($socialMedia)
+            ->firstWhere('platform', 'twitter')['url'] ?? null;
+
+        $socialInstagram = collect($socialMedia)
+            ->firstWhere('platform', 'instagram')['url'] ?? null;
+
+        $mandate = $p->mandates->sortByDesc('started_at')->first();
+        $mandatePeriod = null;
+        if ($mandate) {
+            $start = $mandate->started_at?->format('Y');
+            $end = $mandate->ended_at ? $mandate->ended_at->format('Y') : 'atual';
+            $mandatePeriod = $start ? $start.'–'.$end : null;
+        }
+
+        $totalVotes = $p->votes_count;
+        $presenca = $totalVotes > 0
+            ? min(100, (int) round($totalVotes / max(1, $p->events_count + $totalVotes) * 100))
+            : null;
 
         return [
             'id' => $p->id,
@@ -243,12 +244,21 @@ class Show extends Component
             'email' => $p->email,
             'phone' => $p->phone,
             'office' => $p->office,
-            'social_media' => $p->social_media ?? [],
             'uf_birth' => $p->uf_birth,
             'municipality_birth' => $p->municipality_birth,
+            'social_media_twitter' => $socialTwitter,
+            'social_media_instagram' => $socialInstagram,
+            'cargo' => $cargo,
+            'mandate_description' => $this->getMandateDescription($cargo),
+            'mandate_period' => $mandatePeriod,
+            'presenca_percentual' => $presenca,
+            'tcu_parecer' => null,
+            'tcu_ano' => null,
             'bills_count' => $billsCount,
             'expenses_count' => $p->expenses_count,
             'votes_count' => $p->votes_count,
+            'speeches_count' => $p->speeches_count,
+            'events_count' => $p->events_count,
             'last_bill_year' => $lastBill?->year,
             'last_vote_date' => $lastVote?->date ? date('d/m/Y', strtotime($lastVote->date)) : null,
             'mandates' => $p->mandates->sortByDesc('started_at')->map(fn ($m) => [
@@ -268,12 +278,7 @@ class Show extends Component
                 'latest_progress' => $b->progress->first()?->description,
                 'latest_progress_date' => $b->progress->first()?->date?->format('d/m/Y'),
             ])->values()->all(),
-            'votes' => $votes->map(fn ($v) => [
-                'vote' => $v->vote,
-                'bill_title' => $v->bill_title ?? $v->session_description ?? '—',
-                'session_external_id' => $v->session_external_id,
-                'date' => $v->session_date ? date('d/m/Y', strtotime($v->session_date)) : null,
-            ])->values()->all(),
+            'votes' => $votesWithOrientation->values()->all(),
             'expenses' => $expenses->map(fn ($e) => [
                 'type' => $e->type,
                 'description' => $e->description,
@@ -287,12 +292,6 @@ class Show extends Component
             ])->all(),
             'total_expenses' => $totalExpenses,
             'bancada_avg' => $bancadaAvg,
-            'badges' => $p->badges->map(fn ($b) => [
-                'name' => $b->label,
-                'color' => $b->color,
-                'type' => $b->badge_type,
-                'description' => $b->description,
-            ])->values()->all(),
             'committees' => $p->committeeMemberships->map(fn ($c) => [
                 'name' => $c->name,
                 'acronym' => $c->acronym,
@@ -305,6 +304,14 @@ class Show extends Component
                 'title' => $f->title,
                 'legislature' => $f->legislature,
             ])->values()->all(),
+            'fronts_grouped' => FrenteCategorizer::group(
+                $p->parliamentaryFronts->map(fn ($f) => [
+                    'title' => $f->title,
+                    'legislature' => $f->legislature,
+                    'external_id' => $f->external_id,
+                ])->values()->all()
+            ),
+            'fronts_total' => $p->parliamentaryFronts->count(),
             'leaderships' => $p->leadershipPositions->map(fn ($l) => [
                 'position' => $l->position,
                 'party' => $l->party_acronym,
@@ -335,6 +342,7 @@ class Show extends Component
                 'description' => $a->description,
                 'value' => (float) $a->value,
             ])->values()->all(),
+            'total_bens' => $totalBens,
             'legal_proceedings' => $legalProceedings->map(fn ($lp) => [
                 'process_number' => $lp->case_number,
                 'court' => $lp->court,
@@ -346,8 +354,72 @@ class Show extends Component
             'total_campanha' => $totalCampanha,
             'doadores' => [],
             'committees_count' => count($p->committeeMemberships),
-            'badges_count' => count($p->badges),
         ];
+    }
+
+    private function detectarCargo(Politician $p): string
+    {
+        $position = strtolower($p->position ?? '');
+
+        if (str_contains($position, 'presidente') && ! str_contains($position, 'vice')) {
+            return 'presidente';
+        }
+        if (str_contains($position, 'vice')) {
+            return 'vice';
+        }
+        if (str_contains($position, 'senador')) {
+            return 'senador';
+        }
+
+        return 'deputado';
+    }
+
+    private function getMandateDescription(string $cargo): string
+    {
+        return match ($cargo) {
+            'deputado' => 'Representa o povo na câmara e propõe leis de âmbito nacional',
+            'senador' => 'Representa o estado no Senado e aprova indicações para o STF',
+            'presidente' => 'Chefe do Executivo federal; nomeia ministros, sanciona ou veta leis e comanda as Forças Armadas',
+            'vice' => 'Substitui o presidente quando necessário e exerce funções delegadas por ele',
+        };
+    }
+
+    private function getSourceFooter(string $cargo): string
+    {
+        return match ($cargo) {
+            'deputado' => 'câmara dos deputados · TSE · portal da transparência',
+            'senador' => 'senado federal · TSE · portal da transparência',
+            'presidente' => 'TCU · senado federal · DOU · portal da transparência · TSE',
+            'vice' => 'DOU · TSE · portal da transparência',
+        };
+    }
+
+    private function votesAligned(?string $vote, ?string $orientation): ?bool
+    {
+        if ($vote === null || $orientation === null) {
+            return null;
+        }
+
+        $voteNorm = $this->normalizeVote($vote);
+        $orientNorm = $this->normalizeVote($orientation);
+
+        if ($voteNorm === '' || $orientNorm === '') {
+            return null;
+        }
+
+        return $voteNorm === $orientNorm;
+    }
+
+    private function normalizeVote(string $vote): string
+    {
+        $lower = mb_strtolower(trim($vote));
+
+        return match (true) {
+            str_contains($lower, 'sim') => 'sim',
+            str_contains($lower, 'não') || str_contains($lower, 'nao') => 'não',
+            str_contains($lower, 'abstenção') || str_contains($lower, 'abstencao') => 'abstenção',
+            default => $lower,
+        };
     }
 
     public function render(): View

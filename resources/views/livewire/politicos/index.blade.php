@@ -1,195 +1,126 @@
-<section class="w-full">
-    <div class="mb-6">
-        <flux:heading size="xl" level="1">Políticos</flux:heading>
-        <flux:subheading size="lg">Busque e filtre políticos por partido, cargo e estado</flux:subheading>
-        <flux:separator variant="subtle" class="mt-4" />
-    </div>
+<section style="padding:40px 0 80px;">
 
-    <div class="flex gap-6 max-lg:flex-col">
-        {{-- Sidebar de filtros --}}
-        <aside class="w-full lg:w-60 xl:w-64 flex-shrink-0">
-            <div class="space-y-5 lg:sticky lg:top-20">
-                {{-- Busca --}}
-                <div>
-                    <flux:input
-                        wire:model.live.debounce.300ms="search"
-                        placeholder="Buscar por nome..."
-                        icon="magnifying-glass"
-                    />
-                </div>
+    {{-- Diretório (dentro do mc-page, margem 100px) --}}
+    <div class="mc-page">
+        <div style="text-align:center;margin-bottom:24px;">
+            <h1 class="mc-h1" style="margin-bottom:8px;">Quem representa você</h1>
+            <p class="mc-eyebrow" style="justify-content:center;margin:0;"><span class="mc-dot"></span>meu-candidato</p>
+        </div>
 
-                @if ($this->hasFilters)
-                    <flux:button variant="ghost" size="sm" wire:click="clearFilters" class="w-full">
-                        <flux:icon.x-mark class="w-3 h-3" />
-                        Limpar filtros
-                    </flux:button>
-                @endif
+        <div class="mc-toggle">
+            <button wire:click="toggleTab('candidatos')" class="{{ $activeTab === 'candidatos' ? 'active' : '' }}">Candidatos</button>
+            <button wire:click="toggleTab('eleitos')" class="{{ $activeTab === 'eleitos' ? 'active' : '' }}">Eleitos</button>
+        </div>
 
-                {{-- Cargo --}}
-                <div>
-                    <p class="text-xs font-semibold text-zinc-500 uppercase tracking-wider mb-2">Cargo</p>
-                    <div class="space-y-1.5">
-                        @foreach ($this->positions as $position)
-                            <label class="flex items-center gap-2 cursor-pointer group">
-                                <input
-                                    type="checkbox"
-                                    wire:change="togglePosition(@js($position))"
-                                    @checked(in_array($position, $this->selectedPositions))
-                                    class="w-3.5 h-3.5 rounded border-zinc-300 text-emerald-600 focus:ring-emerald-500"
-                                />
-                                <span class="text-xs text-zinc-700 group-hover:text-emerald-600 transition-colors">
-                                    {{ $position }}
-                                </span>
-                            </label>
-                        @endforeach
-                    </div>
-                </div>
+        <div class="mc-filters" style="justify-content:center;">
+            <input
+                type="text"
+                wire:model.live.debounce.300ms="search"
+                placeholder="Buscar por nome"
+            />
+            <select wire:model.live="selectedState">
+                <option value="">Todos os estados</option>
+                @foreach ($this->states as $state)
+                    <option value="{{ $state }}">{{ $state }}</option>
+                @endforeach
+            </select>
+            <select wire:model.live="selectedParty">
+                <option value="">Todos os partidos</option>
+                @foreach ($this->parties as $party)
+                    <option value="{{ $party }}">{{ $party }}</option>
+                @endforeach
+            </select>
+            <select wire:model.live="selectedPosition">
+                <option value="">Todos os cargos</option>
+                @foreach ($this->positions as $position)
+                    <option value="{{ $position }}">{{ $position }}</option>
+                @endforeach
+            </select>
+        </div>
 
-                {{-- Partido --}}
-                <div>
-                    <p class="text-xs font-semibold text-zinc-500 uppercase tracking-wider mb-2">Partido</p>
-                    <div class="space-y-1.5">
-                        @foreach ($this->parties as $party)
-                            <label class="flex items-center gap-2 cursor-pointer group">
-                                <input
-                                    type="checkbox"
-                                    wire:change="toggleParty(@js($party))"
-                                    @checked(in_array($party, $this->selectedParties))
-                                    class="w-3.5 h-3.5 rounded border-zinc-300 text-emerald-600 focus:ring-emerald-500"
-                                />
-                                <span class="text-xs text-zinc-700 group-hover:text-emerald-600 transition-colors">
-                                    {{ $party }}
-                                </span>
-                            </label>
-                        @endforeach
-                    </div>
-                </div>
-
-                {{-- Estado --}}
-                <div>
-                    <p class="text-xs font-semibold text-zinc-500 uppercase tracking-wider mb-2">Estado</p>
-                    <flux:select wire:model.live="selectedState">
-                        <flux:select.option value="">Todos os estados</flux:select.option>
-                        @foreach ($this->states as $state)
-                            <flux:select.option value="{{ $state }}">{{ $state }}</flux:select.option>
-                        @endforeach
-                    </flux:select>
-                </div>
+        @if ($this->hasFilters)
+            <div style="text-align:center;">
+                <button wire:click="clearFilters" style="font-size:12px;color:var(--seal);background:none;border:none;cursor:pointer;padding:0;margin-bottom:10px;font-family:'Inter',sans-serif;">limpar filtros</button>
             </div>
-        </aside>
+        @endif
 
-        {{-- Conteúdo principal --}}
-        <main class="flex-1 min-w-0">
-            <div class="mb-5">
-                <p class="text-sm text-zinc-500">
-                    <span class="font-semibold text-zinc-900">{{ $politicians->total() }}</span>
-                    político{{ $politicians->total() !== 1 ? 's' : '' }}
-                    encontrado{{ $politicians->total() !== 1 ? 's' : '' }}
-                </p>
-            </div>
+        {{-- Trending / Em alta (após filtros, só na aba eleitos) --}}
+        @if ($activeTab === 'eleitos' && !empty($trending) && count($trending) > 0)
+            @include('livewire.politicos.partials.trending-carousel', ['trending' => $trending])
+        @endif
 
+        @if ($activeTab === 'candidatos')
             @if ($politicians->isEmpty())
-                <div class="flex flex-col items-center justify-center py-24 text-center">
-                    <p class="text-zinc-500 text-sm">Nenhum político encontrado com os filtros selecionados.</p>
-                    <flux:button variant="ghost" size="sm" wire:click="clearFilters" class="mt-3">
-                        Limpar filtros
-                    </flux:button>
+                <div style="text-align:center;padding:60px 0;">
+                    <p style="font-size:14px;color:var(--ink-faint);">Nenhum candidato encontrado com os filtros selecionados.</p>
+                    <button wire:click="clearFilters" style="font-size:13px;color:var(--seal);background:none;border:none;cursor:pointer;padding:8px 0;font-family:'Inter',sans-serif;">limpar filtros</button>
                 </div>
             @else
-                <div class="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4">
+                <div class="mc-dir-grid">
                     @foreach ($politicians as $politician)
-                        <div wire:key="{{ $politician->id }}" class="bg-white border border-zinc-200 rounded-lg flex flex-col transition-all duration-200 hover:shadow-lg hover:-translate-y-0.5">
-                            {{-- Header: foto + identidade --}}
-                            <div class="p-4 flex items-start gap-3">
-                                <div class="w-14 h-14 rounded-lg overflow-hidden flex-shrink-0 bg-zinc-100">
-                                    @if ($politician->photo_url)
-                                        <img
-                                            src="{{ $politician->photo_url }}"
-                                            alt="{{ $politician->name }}"
-                                            class="w-full h-full object-cover"
-                                            loading="lazy"
-                                            onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';"
-                                        />
-                                        <div class="w-full h-full flex items-center justify-center bg-zinc-200 text-zinc-500 text-lg font-bold" style="display: none;">
-                                            {{ strtoupper(mb_substr($politician->name, 0, 2)) }}
-                                        </div>
-                                    @else
-                                        <div class="w-full h-full flex items-center justify-center bg-zinc-200 text-zinc-500 text-lg font-bold">
-                                            {{ strtoupper(mb_substr($politician->name, 0, 2)) }}
-                                        </div>
-                                    @endif
-                                </div>
-                                <div class="min-w-0 flex-1">
-                                    <h2 class="text-sm font-semibold text-zinc-900 leading-snug line-clamp-2">
-                                        {{ $politician->name }}
-                                    </h2>
-                                    <p class="text-xs text-zinc-500 mt-0.5 font-mono">
-                                        {{ $politician->party?->acronym ?? 'S/' }} · {{ $politician->latestAddress?->uf ?? '—' }}
-                                    </p>
-                                    <p class="text-xs text-zinc-500">{{ $politician->position ?? '—' }}</p>
-                                </div>
-                            </div>
-
-                            <div class="border-t border-zinc-200"></div>
-
-                            {{-- Conteúdo --}}
-                            <div class="flex-1 flex flex-col p-4 gap-3">
-                                @php
-                                    $ultimoMandato = $politician->mandates->sortByDesc('started_at')->first();
-                                    $ultimoBill = $politician->bills->sortByDesc('year')->first();
-                                @endphp
-
-                                {{-- Mandato --}}
-                                @if ($ultimoMandato)
-                                    <div>
-                                        <span class="text-xs font-medium text-zinc-500 uppercase tracking-wide">Mandato</span>
-                                        <p class="text-xs text-zinc-700 mt-0.5">
-                                            {{ $ultimoMandato->started_at?->format('d/m/Y') }} — {{ $ultimoMandato->ended_at?->format('d/m/Y') ?? 'Em exercício' }}
-                                        </p>
+                        <a href="{{ route('politicos.show', $politician->id) }}" wire:navigate class="mc-dir-card" wire:key="{{ $politician->id }}">
+                            <div class="mc-avatar-dir">
+                                @if ($politician->photo_url)
+                                    <img
+                                        src="{{ $politician->photo_url }}"
+                                        alt="{{ $politician->name }}"
+                                        loading="lazy"
+                                        onerror="this.style.display='none';this.nextElementSibling.style.display='flex';"
+                                    />
+                                    <div style="display:none;align-items:center;justify-content:center;width:100%;height:100%;">
+                                        {{ strtoupper(mb_substr($politician->name, 0, 2)) }}
                                     </div>
-                                @endif
-
-                                {{-- Escolaridade --}}
-                                @if ($politician->education)
-                                    <div>
-                                        <span class="text-xs font-medium text-zinc-500 uppercase tracking-wide">Escolaridade</span>
-                                        <p class="text-xs text-zinc-700 mt-0.5">
-                                            {{ $politician->education }}
-                                        </p>
-                                    </div>
-                                @endif
-
-                                {{-- PL recente --}}
-                                @if ($ultimoBill)
-                                    <div>
-                                        <span class="text-xs font-medium text-zinc-500 uppercase tracking-wide">Proposição recente</span>
-                                        <p class="text-xs text-zinc-700 mt-0.5 leading-relaxed">
-                                            {{ $ultimoBill->title }}
-                                        </p>
-                                    </div>
+                                @else
+                                    {{ strtoupper(mb_substr($politician->name, 0, 2)) }}
                                 @endif
                             </div>
-
-                            {{-- Botão --}}
-                            <div class="p-4 pt-0">
-                                <flux:button variant="primary" class="w-full" size="sm" wire:navigate href="{{ route('politicos.show', $politician->id) }}">
-                                    VER PERFIL
-                                </flux:button>
-                            </div>
-                        </div>
+                            <div class="mc-dir-name">{{ $politician->nome_urna ?? $politician->name }}</div>
+                            <div class="mc-dir-meta">{{ $politician->party?->acronym ?? 'S/' }} · {{ $politician->latestAddress?->uf ?? '—' }}</div>
+                            <div class="mc-dir-position">{{ strtolower($politician->position ?? '—') }}</div>
+                        </a>
                     @endforeach
                 </div>
 
-                <div class="mt-6">
+                <div style="margin-top:20px;">
                     {{ $politicians->links() }}
                 </div>
             @endif
-        </main>
-    </div>
+        @else
+            @if ($politicians->isEmpty())
+                <div style="text-align:center;padding:60px 0;">
+                    <p style="font-size:14px;color:var(--ink-faint);">Nenhum político encontrado com os filtros selecionados.</p>
+                    <button wire:click="clearFilters" style="font-size:13px;color:var(--seal);background:none;border:none;cursor:pointer;padding:8px 0;font-family:'Inter',sans-serif;">limpar filtros</button>
+                </div>
+            @else
+                <div class="mc-dir-grid">
+                    @foreach ($politicians as $politician)
+                        <a href="{{ route('politicos.show', $politician->id) }}" wire:navigate class="mc-dir-card" wire:key="{{ $politician->id }}">
+                            <div class="mc-avatar-dir">
+                                @if ($politician->photo_url)
+                                    <img
+                                        src="{{ $politician->photo_url }}"
+                                        alt="{{ $politician->name }}"
+                                        loading="lazy"
+                                        onerror="this.style.display='none';this.nextElementSibling.style.display='flex';"
+                                    />
+                                    <div style="display:none;align-items:center;justify-content:center;width:100%;height:100%;">
+                                        {{ strtoupper(mb_substr($politician->name, 0, 2)) }}
+                                    </div>
+                                @else
+                                    {{ strtoupper(mb_substr($politician->name, 0, 2)) }}
+                                @endif
+                            </div>
+                            <div class="mc-dir-name">{{ $politician->nome_urna ?? $politician->name }}</div>
+                            <div class="mc-dir-meta">{{ $politician->party?->acronym ?? 'S/' }} · {{ $politician->latestAddress?->uf ?? '—' }}</div>
+                            <div class="mc-dir-position">{{ strtolower($politician->position ?? '—') }}{{ $politician->mandates->firstWhere('ended_at', null) ? ' (em exercício)' : '' }}</div>
+                        </a>
+                    @endforeach
+                </div>
 
-    <div class="border-t border-zinc-200 mt-12 py-6">
-        <p class="text-center text-xs text-zinc-500">
-            Dados públicos agregados para transparência política · Fontes: Câmara, Senado e TSE
-        </p>
+                <div style="margin-top:20px;">
+                    {{ $politicians->links() }}
+                </div>
+            @endif
+        @endif
     </div>
 </section>
