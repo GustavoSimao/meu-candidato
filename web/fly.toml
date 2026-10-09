@@ -7,9 +7,15 @@ primary_region = "gru"
 [env]
   NEXT_PUBLIC_API_URL = "http://meu-candidato-api.internal:8080/api/v1"
 
-[services]
+[[services]]
+  internal_port = 3000
+  protocol = "tcp"
+  
   [[services.ports]]
-    port = 3000
+    port = 80
+  
+  [[services.ports]]
+    port = 443
 
 [[services.http_checks]]
   path = "/"

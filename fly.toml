@@ -1,4 +1,4 @@
-app = "meu-candidato-api"
+app = "meu-candidato"
 primary_region = "gru"
 
 [build]
@@ -7,9 +7,15 @@ primary_region = "gru"
 [env]
   ENVIRONMENT = "production"
 
-[services]
+[[services]]
+  internal_port = 8000
+  protocol = "tcp"
+  
   [[services.ports]]
-    port = 8080
+    port = 80
+  
+  [[services.ports]]
+    port = 443
 
 [[services.http_checks]]
   path = "/health"
