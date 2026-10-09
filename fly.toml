@@ -1,0 +1,17 @@
+app = "meu-candidato-api"
+primary_region = "gru"
+
+[build]
+  dockerfile = "Dockerfile"
+
+[env]
+  ENVIRONMENT = "production"
+
+[services]
+  [[services.ports]]
+    port = 8080
+
+[[services.http_checks]]
+  path = "/health"
+  interval = "30s"
+  timeout = "5s"
