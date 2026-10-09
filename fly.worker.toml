@@ -1,0 +1,25 @@
+app = "meu-candidato-worker"
+primary_region = "gru"
+
+[build]
+  dockerfile = "Dockerfile.worker"
+
+[env]
+  ENVIRONMENT = "production"
+
+[processes]
+  scheduled = "python -m app.workers.ingestion"
+
+[[cron]]
+  command = "python -m app.workers.ingestion"
+  schedule = "0 3 * * *"
+
+[[services]]
+  internal_port = 8000
+  protocol = "tcp"
+
+  [[services.ports]]
+    port = 80
+
+  [[services.ports]]
+    port = 443

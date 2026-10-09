@@ -35,8 +35,12 @@ async def get_session() -> AsyncSession:
 
 
 async def init_db() -> None:
-    async with engine.begin() as conn:
-        await conn.run_sync(Base.metadata.create_all)
+    """Run Alembic migrations on startup instead of create_all."""
+    from alembic.config import Config
+    from alembic import command
+
+    alembic_cfg = Config("alembic.ini")
+    command.upgrade(alembic_cfg, "head")
 
 
 async def close_db() -> None:

@@ -18,6 +18,7 @@ class Settings(BaseSettings):
     camara_base_url: str = "https://dadosabertos.camara.leg.br"
     senado_base_url: str = "https://legis.senado.leg.br"
     tse_base_url: str = "https://cdn.tse.jus.br"
+    allowed_origins: str = ""
 
     ingestion_schedule_cron: str = "0 3 * * *"
     ingestion_batch_size: int = 1000

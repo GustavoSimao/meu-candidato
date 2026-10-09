@@ -1,6 +1,7 @@
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI, Request
+from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
 from app.engagement.api.router import router as engagement_router
@@ -32,6 +33,24 @@ app = FastAPI(
     version="0.1.0",
     lifespan=lifespan,
 )
+
+_origins = [o.strip() for o in settings.allowed_origins.split(",") if o.strip()]
+if _origins:
+    app.add_middleware(
+        CORSMiddleware,
+        allow_origins=_origins,
+        allow_credentials=True,
+        allow_methods=["*"],
+        allow_headers=["*"],
+    )
+else:
+    app.add_middleware(
+        CORSMiddleware,
+        allow_origins=["*"],
+        allow_credentials=False,
+        allow_methods=["*"],
+        allow_headers=["*"],
+    )
 
 app.include_router(politician_router, prefix="/api/v1")
 app.include_router(legislative_router, prefix="/api/v1")

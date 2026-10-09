@@ -1,5 +1,4 @@
-# Meu Candidato - API
-# Build
+# Meu Candidato - Worker (Data Ingestion)
 FROM python:3.11-slim AS builder
 
 WORKDIR /app
@@ -7,9 +6,8 @@ WORKDIR /app
 RUN pip install --no-cache-dir uv
 
 COPY pyproject.toml .
-RUN uv pip install --system --no-cache .
+RUN uv pip install --system --no-cache ".[ingestion]"
 
-# Runtime
 FROM python:3.11-slim
 
 WORKDIR /app
@@ -30,4 +28,4 @@ COPY . .
 
 EXPOSE 8000
 
-CMD alembic upgrade head && uvicorn app.main:app --host 0.0.0.0 --port 8000
+CMD alembic upgrade head && python -m app.workers.ingestion
