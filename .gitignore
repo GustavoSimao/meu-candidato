@@ -1,0 +1,66 @@
+# Environment variables
+.env
+.env.*
+!.env.example
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+*.egg-info/
+*.egg
+dist/
+build/
+eggs/
+*.eggs/
+sdist/
+wheels/
+*.whl
+
+# Caching
+.mypy_cache/
+.pytest_cache/
+.ruff_cache/
+.coverage
+.coverage.*
+htmlcov/
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+.DS_Store
+
+# OS
+Thumbs.db
+
+# Docker
+*.pid
+
+# Data (raw downloads - local only, do NOT commit)
+data/
+!data/.gitkeep
+
+# Logs
+*.log
+logs/
+
+# Alembic
+alembic/versions/*.db
+
+# Database
+*.db
+*.sqlite3
+
+# Frontend (Next.js)
+/web/.next/
+/web/out/
+/web/node_modules/
+/web/dist/
+/web/.env.local
+/web/.env.development.local
+/web/.env.test.local
+/web/.env.production.local

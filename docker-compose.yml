@@ -1,0 +1,60 @@
+services:
+  api:
+    build: .
+    ports:
+      - "8000:8000"
+    environment:
+      - DATABASE_URL=postgresql+psycopg://meucandidato:meucandidato@db:5432/meucandidato
+      - ENVIRONMENT=development
+    depends_on:
+      db:
+        condition: service_healthy
+    volumes:
+      - .:/app
+      - ./data/raw:/app/data/raw
+      - ./data/quarantine:/app/data/quarantine
+    command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
+
+  db:
+    image: postgres:16-alpine
+    environment:
+      - POSTGRES_USER=meucandidato
+      - POSTGRES_PASSWORD=meucandidato
+      - POSTGRES_DB=meucandidato
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U meucandidato -d meucandidato"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  worker:
+    build: .
+    environment:
+      - DATABASE_URL=postgresql+psycopg://meucandidato:meucandidato@db:5432/meucandidato
+      - ENVIRONMENT=development
+    depends_on:
+      db:
+        condition: service_healthy
+    volumes:
+      - .:/app
+      - ./data/raw:/app/data/raw
+      - ./data/quarantine:/app/data/quarantine
+    command: python -m app.workers.ingestion
+
+  web:
+    build:
+      context: ./web
+      dockerfile: Dockerfile
+    ports:
+      - "3000:3000"
+    depends_on:
+      - api
+    environment:
+      - NEXT_PUBLIC_API_URL=http://api:8000/api/v1
+
+volumes:
+  pgdata:
