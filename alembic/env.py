@@ -12,7 +12,7 @@ from alembic import context
 # Add the project root to sys.path
 sys.path.append(".")
 
-from app.shared.kernel.config import settings
+from app.shared.kernel.config import get_database_url, settings
 from app.shared.kernel.database import Base
 
 # Import all models to register them with Base.metadata
@@ -26,7 +26,7 @@ from app.ingestion.infrastructure.models import IngestionJobORM, QuarantineRecor
 config = context.config
 
 # Override sqlalchemy.url from settings
-config.set_main_option("sqlalchemy.url", settings.database_url)
+config.set_main_option("sqlalchemy.url", get_database_url())
 
 # Interpret the config file for Python logging
 if config.config_file_name is not None:

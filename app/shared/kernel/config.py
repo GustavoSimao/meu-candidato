@@ -7,10 +7,10 @@ class Settings(BaseSettings):
     model_config = SettingsConfigDict(
         env_file=".env",
         case_sensitive=False,
-        extra="ignore"
+        extra="ignore",
     )
 
-    database_url: str
+    database_url: str | None = None
     environment: str = "development"
     api_host: str = "0.0.0.0"
     api_port: int = 8000
@@ -32,3 +32,13 @@ class Settings(BaseSettings):
 
 
 settings = Settings()
+
+def get_database_url() -> str:
+    """Retorna DATABASE_URL requerido, levantando erro claro se não configurado."""
+    url = settings.database_url
+    if url is None:
+        raise RuntimeError(
+            "DATABASE_URL environment variable is required. "
+            "Set it via Fly.io secrets: flyctl secrets set DATABASE_URL=<your-database-url>"
+        )
+    return url
