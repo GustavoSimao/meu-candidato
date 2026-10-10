@@ -1,4 +1,5 @@
-import { getBadgeIcon, getBadgeLabel } from "@/lib/utils";
+import { BadgeIcon } from "@/lib/icons";
+import { getBadgeLabel } from "@/lib/utils";
 import type { Badge } from "@/lib/types";
 
 export interface BadgeDisplayProps {
@@ -8,31 +9,29 @@ export interface BadgeDisplayProps {
 
 export function BadgeDisplay({ badges, max = 12 }: BadgeDisplayProps) {
   if (!badges || badges.length === 0) {
-    return <div className="text-sm text-gray-500">Nenhum badge conquistado ainda</div>;
+    return <div className="text-sm text-neutral-500">Nenhum badge conquistado ainda</div>;
   }
 
   const displayBadges = badges.slice(0, max);
   const remaining = badges.length - displayBadges.length;
 
   return (
-    <div className="flex flex-wrap gap-3">
+    <div className="flex flex-wrap gap-2">
       {displayBadges.map((badge) => (
-        <div
+        <span
           key={badge.id || badge.badge_type}
-          className="flex items-center gap-2 rounded-lg bg-yellow-50 px-3 py-2"
+          className="badge-chip"
           title={
             typeof badge.metadata?.description === "string"
               ? badge.metadata.description
               : getBadgeLabel(badge.badge_type)
           }
         >
-          <span className="text-xl">{getBadgeIcon(badge.badge_type)}</span>
-          <div>
-            <span className="text-sm font-medium">{getBadgeLabel(badge.badge_type)}</span>
-          </div>
-        </div>
+          <BadgeIcon badgeType={badge.badge_type} className="h-3.5 w-3.5" />
+          <span className="truncate">{getBadgeLabel(badge.badge_type)}</span>
+        </span>
       ))}
-      {remaining > 0 && <span className="text-sm text-gray-500">+{remaining} outros</span>}
+      {remaining > 0 && <span className="text-sm text-neutral-500">+{remaining} outros</span>}
     </div>
   );
 }

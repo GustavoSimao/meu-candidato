@@ -49,13 +49,13 @@ export default async function PoliticiansPage({
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-neutral-50">
       <Header />
 
       <main className="py-8">
         <Container>
           <div className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
-            <h1 className="text-2xl font-bold text-gray-900">Políticos</h1>
+            <h1 className="text-2xl font-bold text-neutral-900">Políticos</h1>
 
             <form method="get" action="/politicians" className="flex flex-wrap gap-3">
               {uf && <input type="hidden" name="uf" value={uf} />}
@@ -81,7 +81,7 @@ export default async function PoliticiansPage({
               <Button type="submit" variant="outline" size="sm">
                 Filtrar
               </Button>
-              <Link href="/politicians" className="text-sm text-gray-600 hover:text-blue-700">
+              <Link href="/politicians" className="text-sm text-neutral-600 hover:text-blue-700">
                 Limpar
               </Link>
             </form>
@@ -92,7 +92,7 @@ export default async function PoliticiansPage({
           {data ? (
             <>
               {data.total === 0 ? (
-                <p className="text-gray-500">
+                <p className="text-neutral-500">
                   Nenhum político encontrado com os filtros aplicados.
                 </p>
               ) : (
@@ -117,7 +117,7 @@ export default async function PoliticiansPage({
           ) : (
             <div className="space-y-4">
               {[...Array(6)].map((_, i) => (
-                <div key={i} className="h-32 animate-pulse rounded-lg bg-gray-200" />
+                <div key={i} className="h-32 animate-pulse rounded-lg bg-neutral-200" />
               ))}
             </div>
           )}

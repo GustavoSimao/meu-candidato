@@ -40,9 +40,9 @@ export function Pagination({
   if (totalPages <= 1) return null;
 
   return (
-    <nav className="flex items-center justify-between border-t border-gray-200 px-4 sm:px-0">
+    <nav className="flex items-center justify-between border-t border-neutral-200 px-4 sm:px-0">
       <div className="mt-2 mb-4 sm:sm:mt-0 sm:flex sm:justify-between">
-        <p className="text-sm text-gray-700">
+        <p className="text-sm text-neutral-700">
           Mostrando <span className="font-medium">{(currentPage - 1) * perPage + 1}</span> a{" "}
           <span className="font-medium">{Math.min(currentPage * perPage, totalItems)}</span> de{" "}
           <span className="font-medium">{totalItems}</span> resultados
@@ -52,7 +52,7 @@ export function Pagination({
         {currentPage > 1 && (
           <Link
             href={getPageUrl(currentPage - 1)}
-            className="rounded-md px-3 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50"
+            className="rounded-md px-3 py-2 text-sm font-medium text-neutral-700 hover:bg-neutral-50"
           >
             Anterior
           </Link>
@@ -63,7 +63,7 @@ export function Pagination({
             href={getPageUrl(page)}
             className={cn(
               "rounded-md px-3 py-2 text-sm font-medium",
-              page === currentPage ? "bg-blue-600 text-white" : "text-gray-700 hover:bg-gray-50"
+              page === currentPage ? "bg-blue-600 text-white" : "text-neutral-700 hover:bg-neutral-50"
             )}
           >
             {page}
@@ -72,7 +72,7 @@ export function Pagination({
         {currentPage < totalPages && (
           <Link
             href={getPageUrl(currentPage + 1)}
-            className="rounded-md px-3 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50"
+            className="rounded-md px-3 py-2 text-sm font-medium text-neutral-700 hover:bg-neutral-50"
           >
             Próxima
           </Link>

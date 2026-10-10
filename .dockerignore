@@ -1,0 +1,15 @@
+.env
+.env.*
+.git
+.gitignore
+.mypy_cache
+.pytest_cache
+.ruff_cache
+__pycache__
+*.pyc
+.idea
+*.egg-info
+.terraform
+node_modules
+dist
+build

@@ -28,7 +28,7 @@ const VOTE_LABELS: Record<string, string> = {
 
 export function VoteChart({ votes, stats }: VoteChartProps) {
   if (!stats && (!votes || votes.length === 0)) {
-    return <p className="text-sm text-gray-500">Nenhum voto registrado.</p>;
+    return <p className="text-sm text-neutral-500">Nenhum voto registrado.</p>;
   }
 
   const voteStats = stats || computeStats(votes || []);
@@ -40,7 +40,7 @@ export function VoteChart({ votes, stats }: VoteChartProps) {
     }));
 
   if (chartData.length === 0) {
-    return <p className="text-sm text-gray-500">Nenhum voto registrado.</p>;
+    return <p className="text-sm text-neutral-500">Nenhum voto registrado.</p>;
   }
 
   return (
@@ -53,9 +53,9 @@ export function VoteChart({ votes, stats }: VoteChartProps) {
             content={({ active, payload }) => {
               if (!active || !payload?.length) return null;
               return (
-                <div className="rounded-md bg-white px-3 py-2 text-sm shadow shadow-gray-200">
+                <div className="rounded-md bg-white px-3 py-2 text-sm shadow shadow-neutral-200">
                   <p className="font-medium">{payload[0].payload.name}</p>
-                  <p className="text-gray-600">{payload[0].value} votos</p>
+                  <p className="text-neutral-600">{payload[0].value} votos</p>
                 </div>
               );
             }}
@@ -69,7 +69,7 @@ export function VoteChart({ votes, stats }: VoteChartProps) {
 
 export function VoteList({ votes }: { votes: VoteDetail[] }) {
   if (!votes || votes.length === 0) {
-    return <p className="text-sm text-gray-500">Nenhum voto registrado.</p>;
+    return <p className="text-sm text-neutral-500">Nenhum voto registrado.</p>;
   }
 
   return (
@@ -77,13 +77,13 @@ export function VoteList({ votes }: { votes: VoteDetail[] }) {
       {votes.slice(0, 20).map((vote) => (
         <div
           key={vote.id || `${vote.politician_id}-${vote.proposition_id}-${vote.session_date}`}
-          className="flex items-center justify-between rounded-md border border-gray-200 px-3 py-2"
+          className="flex items-center justify-between rounded-md border border-neutral-200 px-3 py-2"
         >
           <div className="flex flex-col">
-            <span className="text-sm font-medium text-gray-900">
+            <span className="text-sm font-medium text-neutral-900">
               {vote.proposition_title || vote.proposition_id}
             </span>
-            <span className="text-xs text-gray-500">
+            <span className="text-xs text-neutral-500">
               {new Date(vote.session_date).toLocaleDateString("pt-BR")}
               {vote.session_number && ` • Sessão ${vote.session_number}`}
             </span>

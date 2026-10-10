@@ -39,21 +39,12 @@ export function formatDateRange(start: string, end: string | null): string {
 export function getBadgeLabel(badge_type: string): string {
   const labels: Record<string, string> = {
     ficha_limpa: "Ficha Limpa",
-    presenca_alta: "Presença Alta",
+    presenca_alta: "Presença Alta",
     legislador_ativo: "Legislador Ativo",
   };
   return (
     labels[badge_type] || badge_type.replace(/_/g, " ").replace(/\b\w/g, (l) => l.toUpperCase())
   );
-}
-
-export function getBadgeIcon(badge_type: string): string {
-  const icons: Record<string, string> = {
-    ficha_limpa: "🧹",
-    presenca_alta: "✓",
-    legislador_ativo: "📝",
-  };
-  return icons[badge_type] || "🏅";
 }
 
 export const UFS = [

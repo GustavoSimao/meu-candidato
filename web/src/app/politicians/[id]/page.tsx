@@ -20,6 +20,7 @@ import { PropositionList } from "@/components/PropositionList";
 import { VoteChart, VoteList } from "@/components/VoteChart";
 import { CampaignFinanceTable } from "@/components/CampaignFinance";
 import { Container, Header, Footer } from "@/components/layout";
+import { UserCircleIcon } from "@/lib/icons";
 import { formatCurrency } from "@/lib/utils";
 import type {
   PoliticianDetailDTO,
@@ -187,17 +188,17 @@ export default function PoliticianDetailPage({ params }: PoliticianDetailPagePro
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-gray-50">
+      <div className="min-h-screen bg-neutral-50">
         <Header />
         <main className="py-8">
           <Container>
             <div className="animate-pulse space-y-6">
-              <div className="h-8 w-48 rounded bg-gray-200" />
+              <div className="h-8 w-48 rounded bg-neutral-200" />
               <div className="flex items-start gap-6">
-                <div className="h-32 w-32 rounded-full bg-gray-200" />
+                <div className="h-32 w-32 rounded-full bg-neutral-200" />
                 <div className="flex-1 space-y-3">
-                  <div className="h-8 w-3/4 rounded bg-gray-200" />
-                  <div className="h-4 w-1/2 rounded bg-gray-200" />
+                  <div className="h-8 w-3/4 rounded bg-neutral-200" />
+                  <div className="h-4 w-1/2 rounded bg-neutral-200" />
                 </div>
               </div>
             </div>
@@ -210,13 +211,13 @@ export default function PoliticianDetailPage({ params }: PoliticianDetailPagePro
 
   if (error) {
     return (
-      <div className="min-h-screen bg-gray-50">
+      <div className="min-h-screen bg-neutral-50">
         <Header />
         <main className="py-8">
           <Container>
             <div className="rounded-md bg-red-50 p-4 text-red-800">{error}</div>
-            <Link href="/politicians" className="mt-4 inline-block text-blue-600 hover:underline">
-              ← Voltar para a lista
+            <Link href="/politicians" className="mt-4 inline-block text-sm text-blue-700 hover:text-blue-800 hover:underline">
+              Voltar para a lista
             </Link>
           </Container>
         </main>
@@ -238,21 +239,21 @@ export default function PoliticianDetailPage({ params }: PoliticianDetailPagePro
   ];
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-neutral-50">
       <Header />
 
       <main className="py-8">
         <Container>
-          <Link
-            href="/politicians"
-            className="mb-4 inline-block text-sm text-blue-600 hover:underline"
-          >
-            ← Voltar
-          </Link>
+            <Link
+              href="/politicians"
+              className="mb-4 inline-block text-sm text-blue-700 hover:text-blue-800 hover:underline"
+            >
+              Voltar
+            </Link>
 
           <div className="mb-6 flex items-start gap-6">
-            <div className="relative h-32 w-32 flex-shrink-0 overflow-hidden rounded-full bg-gray-100">
-              {politician.photo_url ? (
+            <div className="relative h-32 w-32 flex-shrink-0 overflow-hidden rounded-full bg-neutral-100">
+               {politician.photo_url ? (
                 <Image
                   src={politician.photo_url}
                   alt={politician.name}
@@ -260,19 +261,19 @@ export default function PoliticianDetailPage({ params }: PoliticianDetailPagePro
                   className="object-cover"
                 />
               ) : (
-                <div className="flex h-full w-full items-center justify-center text-3xl">🧑</div>
+                <UserCircleIcon className="h-full w-full rounded-full text-neutral-300" aria-label="Sem foto" data-testid="politician-avatar-fallback" />
               )}
             </div>
             <div>
-              <h1 className="text-2xl font-bold text-gray-900">{politician.name}</h1>
+              <h1 className="text-2xl font-bold text-neutral-900">{politician.name}</h1>
               <div className="mt-1 flex flex-wrap gap-2">
                 <span className="inline-flex items-center rounded-md bg-blue-50 px-2.5 py-0.5 text-sm font-medium text-blue-800">
                   {politician.party}
                 </span>
-                <span className="inline-flex items-center rounded-md bg-gray-100 px-2.5 py-0.5 text-sm font-medium text-gray-800">
+                <span className="inline-flex items-center rounded-md bg-neutral-100 px-2.5 py-0.5 text-sm font-medium text-neutral-800">
                   UF: {politician.uf}
                 </span>
-                <span className="text-sm text-gray-500">#{politician.number}</span>
+                <span className="text-sm text-neutral-500">#{politician.number}</span>
               </div>
               {politician.badges.length > 0 && (
                 <BadgeDisplay
@@ -296,7 +297,7 @@ export default function PoliticianDetailPage({ params }: PoliticianDetailPagePro
 
           <InfoGrid politician={politician} />
 
-          <div className="mt-8 border-b border-gray-200">
+          <div className="mt-8 border-b border-neutral-200">
             <nav className="-mb-px flex flex-wrap gap-x-6 gap-y-2">
               {tabs.map((tab) => (
                 <button
@@ -311,7 +312,7 @@ export default function PoliticianDetailPage({ params }: PoliticianDetailPagePro
                   className={`border-b-2 px-1 py-2 text-sm font-medium ${
                     activeTab === tab.id
                       ? "border-blue-600 text-blue-700"
-                      : "border-transparent text-gray-600 hover:text-gray-700"
+                      : "border-transparent text-neutral-600 hover:text-neutral-700"
                   }`}
                 >
                   {tab.label}
@@ -332,7 +333,7 @@ export default function PoliticianDetailPage({ params }: PoliticianDetailPagePro
                 )}
                 {expensesData && expensesData.total > 0 && (
                   <div className="mb-4 rounded-lg bg-yellow-50 p-4">
-                    <span className="text-sm font-medium text-gray-700">
+                    <span className="text-sm font-medium text-neutral-700">
                       Total de despesas:{" "}
                       {formatCurrency(
                         expensesData.items.reduce((sum, e) => sum + (e.amount || 0), 0)
@@ -351,7 +352,7 @@ export default function PoliticianDetailPage({ params }: PoliticianDetailPagePro
                 )}
                 {campaignSummary && campaignSummary.total_amount > 0 && (
                   <div className="mb-4 rounded-lg bg-green-50 p-4">
-                    <span className="text-sm font-medium text-gray-700">
+                    <span className="text-sm font-medium text-neutral-700">
                       Total arrecadado:{" "}
                       {formatCurrency(campaignSummary.total_amount)}
                     </span>

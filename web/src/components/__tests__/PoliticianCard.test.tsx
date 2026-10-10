@@ -47,7 +47,7 @@ describe("PoliticianCard", () => {
 
   it("renders fallback avatar when no photo", () => {
     render(<PoliticianCard politician={mockPolitician} />);
-    const avatar = screen.getByText("🧑");
+    const avatar = screen.getByTestId("politician-avatar-fallback");
     expect(avatar).toBeInTheDocument();
   });
 });

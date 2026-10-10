@@ -79,13 +79,13 @@ export default function DashboardPage() {
 
   if (showUserIdPrompt) {
     return (
-      <div className="min-h-screen bg-gray-50">
+      <div className="min-h-screen bg-neutral-50">
         <Header />
         <main className="py-16">
           <Container>
-            <div className="mx-auto max-w-md rounded-lg border border-gray-200 bg-white p-8 shadow">
-              <h1 className="mb-4 text-2xl font-bold text-gray-900">Dashboard</h1>
-              <p className="mb-4 text-gray-600">
+            <div className="mx-auto max-w-md rounded-lg border border-neutral-200 bg-white p-8 shadow">
+              <h1 className="mb-4 text-2xl font-bold text-neutral-900">Dashboard</h1>
+              <p className="mb-4 text-neutral-600">
                 Digite seu ID de usuário para acessar seu dashboard personalizado.
               </p>
               <form
@@ -108,7 +108,7 @@ export default function DashboardPage() {
               </form>
               <div className="mt-4">
                 <Link href="/politicians" className="text-sm text-blue-600 hover:underline">
-                  Ver todos os políticos →
+                  Ver todos os políticos
                 </Link>
               </div>
             </div>
@@ -120,13 +120,13 @@ export default function DashboardPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-neutral-50">
       <Header />
 
       <main className="py-8">
         <Container>
           <div className="mb-4 flex items-center justify-between">
-            <h1 className="text-2xl font-bold text-gray-900">Dashboard</h1>
+            <h1 className="text-2xl font-bold text-neutral-900">Dashboard</h1>
             <button
               onClick={() => setShowUserIdPrompt(true)}
               className="text-sm text-blue-600 hover:underline"
@@ -139,17 +139,17 @@ export default function DashboardPage() {
 
           {loading ? (
             <div className="space-y-4">
-              <div className="h-6 w-48 animate-pulse rounded bg-gray-200" />
+              <div className="h-6 w-48 animate-pulse rounded bg-neutral-200" />
               <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
                 {[...Array(3)].map((_, i) => (
-                  <div key={i} className="h-32 animate-pulse rounded-lg bg-gray-200" />
+                  <div key={i} className="h-32 animate-pulse rounded-lg bg-neutral-200" />
                 ))}
               </div>
             </div>
           ) : (
             <>
               <div className="mb-8">
-                <h2 className="mb-4 text-lg font-semibold text-gray-900">
+                <h2 className="mb-4 text-lg font-semibold text-neutral-900">
                   Políticos seguidos ({followedPoliticians.length})
                 </h2>
                 {followedPoliticians.length > 0 ? (
@@ -159,16 +159,16 @@ export default function DashboardPage() {
                     ))}
                   </div>
                 ) : (
-                  <p className="text-sm text-gray-500">Você não segue nenhum político.</p>
+                  <p className="text-sm text-neutral-500">Você não segue nenhum político.</p>
                 )}
               </div>
 
               <div>
-                <h2 className="mb-4 text-lg font-semibold text-gray-900">Badges conquistados</h2>
+                <h2 className="mb-4 text-lg font-semibold text-neutral-900">Badges conquistados</h2>
                 {dashboard?.badges && dashboard.badges.length > 0 ? (
                   <BadgeDisplay badges={dashboard.badges} />
                 ) : (
-                  <p className="text-sm text-gray-500">Nenhum badge conquistado ainda.</p>
+                  <p className="text-sm text-neutral-500">Nenhum badge conquistado ainda.</p>
                 )}
               </div>
             </>

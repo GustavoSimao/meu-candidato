@@ -15,21 +15,22 @@ export const Select = forwardRef<HTMLSelectElement, SelectProps>(
     return (
       <div className="w-full">
         {label && (
-          <label htmlFor={selectId} className="mb-1 block text-sm font-medium text-gray-700">
+          <label htmlFor={selectId} className="mb-1 block text-sm font-medium text-neutral-700">
             {label}
           </label>
         )}
-        <select
-          ref={ref}
-          id={selectId}
-          className={cn(
-            "w-full rounded-md border border-gray-300 px-3 py-2 text-sm text-gray-900",
-            "focus:border-blue-500 focus:ring-2 focus:ring-blue-500 focus:outline-none",
-            error && "border-red-500 focus:ring-red-500",
-            className
-          )}
-          {...props}
-        >
+          <select
+            ref={ref}
+            id={selectId}
+            aria-invalid={error ? "true" : undefined}
+            className={cn(
+              "w-full rounded-md border border-neutral-300 px-3 py-2 text-sm text-neutral-900",
+              "focus-visible:border-blue-600 focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:outline-none",
+              error && "border-red-500 focus-visible:ring-red-500",
+              className
+            )}
+            {...props}
+          >
           {placeholder && (
             <option value="" disabled hidden>
               {placeholder}
